@@ -1,0 +1,137 @@
+/* Complaints page stylesheet - reuses the same navigation styles as other pages */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css');
+
+body {
+    margin: 0;
+    font-family: 'Roboto', sans-serif;
+    background: linear-gradient(180deg, #0f1724 0%, #071021 100%);
+    color: #f0f0f0;
+}
+
+.bubbles span { 
+    background: rgba(255,255,255,0.03); 
+}
+
+.title { 
+    text-align: center; 
+    padding: 20px 0; 
+}
+
+.title h1 { 
+    margin: 0; 
+    letter-spacing: 2px; 
+}
+
+/* Container and navigation (copy of existing nav-related styles used by other pages) */
+.container{ 
+    position: fixed; 
+    left: 0; 
+    top: 0; 
+    bottom: 0; 
+    width: 80px; 
+    background: rgba(255,255,255,0.02);
+    transition: width .3s; 
+    overflow: hidden; 
+}
+
+.container.active{ 
+    width: 240px;
+}
+
+.toggleBox{ 
+    position:absolute; 
+    right:-30px; 
+    top:20px; 
+    display:block; 
+    width:50px; 
+    height:50px; 
+    background:#26d07c; 
+    border-radius:50%; 
+    color:#071021; 
+    text-align:center; 
+    line-height:50px; 
+}
+
+.navItems{ 
+    list-style:none; 
+    padding: 100px 10px 10px; 
+    margin:0; 
+}
+
+.navItems li{ 
+    margin: 14px 0; 
+}
+
+.navItems li a{ 
+    display:flex; 
+    align-items:center; 
+    gap:12px; color:#f0f0f0; 
+    text-decoration:none; 
+    padding:10px; 
+    border-radius:8px; 
+}
+.navItems li a i{ 
+    width:28px; 
+    text-align:center; 
+}
+.navItems li a span{ 
+    opacity:0; 
+    transform: translateX(-8px); 
+    transition: all .25s; 
+}
+
+.container.active .navItems li a span{ 
+    opacity:1; transform: translateX(0); 
+}
+
+.page-container{ 
+    margin-left: 100px; 
+    padding: 30px; 
+}
+.page-header h1{ 
+    margin: 0 0 8px 0; 
+}
+.content-card{ 
+    background: rgba(255,255,255,0.02); 
+    padding: 18px; 
+    border-radius: 8px; 
+    margin-bottom: 18px; 
+}
+
+.complaint-form .form-group{ 
+    margin-bottom: 12px; 
+}
+.complaint-form input[type="text"], .complaint-form textarea{ 
+    width:100%; 
+    padding:10px; 
+    border-radius:6px; 
+    border:1px solid rgba(255,255,255,0.06); 
+    background: rgba(255,255,255,0.02); 
+    color: #f0f0f0; 
+}
+
+.btn{ 
+    background:#26d07c; 
+    color:#071021; 
+    padding:10px 14px; 
+    border:none; 
+    border-radius:6px; 
+    cursor:pointer; 
+}
+
+/* Table styles */
+.data-table{ 
+    width:100%; 
+    border-collapse: collapse;
+}
+.data-table th, .data-table td{ 
+    padding:10px; 
+    text-align:left; 
+    border-bottom:1px solid rgba(255,255,255,0.03); 
+}
+
+@media (max-width: 700px){ 
+    .page-container{ margin-left: 20px; } 
+    .container{ display:none; } 
+}  

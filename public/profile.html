@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - Barangay Management System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/profile.css">
+</head>
+<body>
+    <div class="bubbles">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+    
+    <div class="title">
+        <h1>BARANGAY MANAGEMENT SYSTEM</h1>
+    </div>
+    
+    <div class="container">
+        <a href="#" class="toggleBox">
+            <span class="icon"></span>
+        </a>
+        <ul class="navItems">
+            <li>
+                <a href="home.html">
+                    <i class="fa fa-home" style="--i:1"></i>
+                    <span style="--g:1">Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="profile.html">
+                    <i class="fa fa-user" style="--i:2"></i>
+                    <span style="--g:2">Profile</span>
+                </a>
+            </li>
+            <li>
+                <a href="documents.html">
+                    <i class="fa fa-folder" style="--i:3"></i>
+                    <span style="--g:3">Documents</span>
+                </a>
+            </li>
+            <li>
+                <a href="officials.html">
+                    <i class="fa fa-user-tie" style="--i:4"></i>
+                    <span style="--g:4">Officials</span>
+                </a>
+            </li>
+            <li>
+                <a href="events.html">
+                    <i class="fa fa-calendar" style="--i:5"></i>
+                    <span style="--g:5">Events</span>
+                </a>
+            </li>
+            <li>
+                <a href="residents.html">
+                    <i class="fa fa-users" style="--i:6"></i>
+                    <span style="--g:6">Residents</span>
+                </a>
+            </li>
+            <li>
+                <a href="complaints.html">
+                    <i class="fa fa-comment-alt" style="--i:7"></i>
+                    <span style="--g:7">Complaints</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" onclick="logout()">
+                    <i class="fa fa-sign-out" style="--i:8"></i>
+                    <span style="--g:8">LogOut</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <div class="page-container">
+        <div class="page-header">
+            <h1><i class="fa fa-user"></i> Personal Profile</h1>
+            <p>Manage your personal information</p>
+        </div>
+
+        <div class="content-card">
+            <h2><i class="fa fa-edit"></i> Update Personal Information</h2>
+            <form id="profileForm">
+                <div class="form-group">
+                    <label for="firstName">First Name</label>
+                    <input type="text" id="firstName" name="firstName" placeholder="Enter your first name" required>
+                </div>
+                <div class="form-group">
+                    <label for="middleName">Middle Name</label>
+                    <input type="text" id="middleName" name="middleName" placeholder="Enter your middle name">
+                </div>
+                <div class="form-group">
+                    <label for="lastName">Last Name</label>
+                    <input type="text" id="lastName" name="lastName" placeholder="Enter your last name" required>
+                </div>
+                <div class="form-group">
+                    <label for="age">Age</label>
+                    <input type="number" id="age" name="age" placeholder="Enter your age" min="1" max="120" required>
+                </div>
+                <div class="form-group">
+                    <label for="birthDate">Birth Date</label>
+                    <input type="date" id="birthDate" name="birthDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="gender">Gender</label>
+                    <select id="gender" name="gender" required>
+                        <option value="">Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="civilStatus">Civil Status</label>
+                    <select id="civilStatus" name="civilStatus" required>
+                        <option value="">Select Civil Status</option>
+                        <option value="Single">Single</option>
+                        <option value="Married">Married</option>
+                        <option value="Widowed">Widowed</option>
+                        <option value="Separated">Separated</option>
+                        <option value="Divorced">Divorced</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="address">Complete Address</label>
+                    <textarea id="address" name="address" rows="3" placeholder="Enter your complete address" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="contactNumber">Contact Number</label>
+                    <input type="tel" id="contactNumber" name="contactNumber" placeholder="Enter your contact number" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" placeholder="Enter your email address">
+                </div>
+                <button type="submit" class="btn">
+                    <i class="fa fa-save"></i> Save Profile
+                </button>
+            </form>
+        </div>
+
+        <div class="content-card">
+            <h2><i class="fa fa-id-card"></i> Current Profile Information</h2>
+            <div class="profile-info">
+                <div class="info-card">
+                    <h3>Personal Details</h3>
+                    <div class="info-item">
+                        <span class="info-label">Full Name:</span>
+                        <span class="info-value" id="displayFullName">Not set</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Age:</span>
+                        <span class="info-value" id="displayAge">Not set</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Birth Date:</span>
+                        <span class="info-value" id="displayBirthDate">Not set</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Gender:</span>
+                        <span class="info-value" id="displayGender">Not set</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Civil Status:</span>
+                        <span class="info-value" id="displayCivilStatus">Not set</span>
+                    </div>
+                </div>
+                <div class="info-card">
+                    <h3>Contact Information</h3>
+                    <div class="info-item">
+                        <span class="info-label">Address:</span>
+                        <span class="info-value" id="displayAddress">Not set</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Contact Number:</span>
+                        <span class="info-value" id="displayContact">Not set</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Email:</span>
+                        <span class="info-value" id="displayEmail">Not set</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/profile.js">
+    </script>
+    
+</body>
+</html>

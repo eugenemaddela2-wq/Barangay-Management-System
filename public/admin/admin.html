@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Barangay Management System</title>
+    <link rel="stylesheet" href="../css/admin.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        /* Logout button specifically for admin page */
+        .logout-card { display:flex; justify-content:center; align-items:center; margin-top: 18px; }
+        .btn-logout {
+            background: linear-gradient(45deg, #ff6b6b, #ff3b3b);
+            color: white;
+            padding: 16px 36px;
+            border: none;
+            border-radius: 28px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 16px;
+            min-width: 220px; /* larger base width */
+            box-shadow: 0 8px 24px rgba(255,59,59,0.18);
+        }
+
+        /* Make the logout button expand on wider space and be full-width on small screens */
+        .logout-card .btn-logout { width: auto; }
+        @media (max-width: 900px) {
+            .logout-card { padding: 0 12px; }
+            .logout-card .btn-logout { width: 100%; min-width: 0; }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="bubbles">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+    
+    <div class="title">
+        <h1>BARANGAY MANAGEMENT SYSTEM - ADMIN</h1>
+    </div>
+    
+    <!-- Admin page does not show the side hamburger nav; all admin actions are in Quick Actions below -->
+
+    <div class="page-container">
+        <div class="page-header">
+            <h1><i class="fa fa-shield-alt"></i> Admin Panel</h1>
+            <p>Manage residents, documents, events, officials, and complaints. Admin privileges required.</p>
+        </div>
+
+        <div class="content-card">
+            <h2>Quick Actions</h2>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <button class="btn" onclick="showSection('residents')">Manage Residents</button>
+                <button class="btn" onclick="showSection('documents')">Manage Documents</button>
+                <button class="btn" onclick="showSection('events')">Manage Events</button>
+                <button class="btn" onclick="showSection('officials')">Manage Officials</button>
+                <button class="btn" onclick="showSection('complaints')">Manage Complaints</button>
+                <button class="btn" onclick="showSection('users')">Manage Users</button>
+                <button class="btn" onclick="exportAll()">Export Data</button>
+                <label class="btn" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;">
+                    Import Data
+                    <input id="importFile" type="file" accept="application/json" style="display:none" onchange="importAll(event)">
+                </label>
+                
+            </div>
+        </div>
+
+        <div id="adminSections"></div>
+
+        <div class="content-card logout-card">
+            <button class="btn-logout" onclick="adminLogout()">Logout</button>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+    <script src="/Javascript_User_&_admin/script.js"></script>
+</body>
+</html>
