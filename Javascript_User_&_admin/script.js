@@ -98,7 +98,7 @@ function updateStatistics() {
 function logout() {
     if (confirm('Are you sure you want to logout?')) {
         alert('Logged out successfully!');
-        window.location.href = '../index.html';
+        window.location.href = '../Barangay-Management-System/index.html';
     }
 }
 

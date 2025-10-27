@@ -64,7 +64,7 @@ function renderResidentsSection() {
                 <tbody id="adminResidentsTable"></tbody>
             </table>
         </div>
-        <div style="margin-top:16px;">
+        <div style="margin-top:16px; align-items:right; display:flex;">
             <button class="btn" onclick="showResidentForm()">Add Resident</button>
         </div>
     `;

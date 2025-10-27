@@ -1,7 +1,7 @@
 -- SQL migration to create tables for Barangay Management System
 
 CREATE TABLE IF NOT EXISTS residents (
-  id bigserial PRIMARY KEY,
+  residents_id bigserial PRIMARY KEY,
   name text NOT NULL,
   age integer,
   address text,
@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS residents (
 );
 
 CREATE TABLE IF NOT EXISTS documents (
-  id bigserial PRIMARY KEY,
+  documents_id bigserial PRIMARY KEY,
   type text,
   resident text,
   date date,
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS documents (
 );
 
 CREATE TABLE IF NOT EXISTS officials (
-  id bigserial PRIMARY KEY,
+  officials_id bigserial PRIMARY KEY,
   name text,
   position text,
   contact text,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS officials (
 );
 
 CREATE TABLE IF NOT EXISTS events (
-  id bigserial PRIMARY KEY,
+  events_id bigserial PRIMARY KEY,
   title text,
   date date,
   time text,
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS events (
 );
 
 CREATE TABLE IF NOT EXISTS users (
-  id bigserial PRIMARY KEY,
+  users_id bigserial PRIMARY KEY,
   username text UNIQUE NOT NULL,
   password text NOT NULL,
   role text DEFAULT 'user',
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE TABLE IF NOT EXISTS complaints (
-  id bigserial PRIMARY KEY,
+  complaints_id bigserial PRIMARY KEY,
   title text,
   details text,
   date date DEFAULT CURRENT_DATE,

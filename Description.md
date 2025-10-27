@@ -1,7 +1,7 @@
 # Barangay Management System
 
 ## Overview
-A comprehensive web-based management system for Barangay (village) administration. This system allows managing residents, documents, events, officials, complaints, and users through an intuitive web interface.
+A comprehensive web-based management system for Barangay administration. This system allows managing residents, documents, events, officials, complaints, and users through an intuitive web interface.
 
 **Status:** Fully operational and running on Replit
 **Last Updated:** October 25, 2025
@@ -19,26 +19,24 @@ A comprehensive web-based management system for Barangay (village) administratio
 ## Project Structure
 ```
 .
-├── public/                    # Frontend static files
-│   ├── css/                  # Stylesheets
-│   ├── js/                   # JavaScript files
-│   ├── admin/                # Admin panel
-│   │   ├── admin.html
-│   │   └── admin.js
-│   ├── Javascript_User_&_admin/  # Shared scripts
-│   │   └── script.js
-│   ├── index.html            # Main landing page
-│   ├── login.html            # Login page
-│   ├── home.html             # User dashboard
-│   ├── residents.html        # Residents management
-│   ├── documents.html        # Documents management
-│   ├── events.html           # Events management
-│   ├── officials.html        # Officials management
-│   ├── complaints.html       # Complaints management
-│   └── profile.html          # User profile
-├── src/                      # Original source files (backup)
-│   └── db/
-│       └── create_tables.sql # Database schema
+
+├── css/                  # Stylesheets
+├── js/                   # JavaScript files
+├── admin/                # Admin panel
+│   ├── admin.html
+│   └── admin.js
+├── Javascript_User_&_admin/  # Shared scripts
+│   └── script.js
+├── index.html            # Main landing page
+├── login.html            # Login page
+├── home.html             # User dashboard
+├── residents.html        # Residents management
+├── documents.html        # Documents management
+├── events.html           # Events management
+├── officials.html        # Officials management
+├── complaints.html       # Complaints management
+├── profile.html          # User profile
+├── create_tables.sql # Database schema
 ├── server.js                 # Express backend server
 ├── package.json              # Node.js dependencies
 └── .gitignore               # Git ignore rules

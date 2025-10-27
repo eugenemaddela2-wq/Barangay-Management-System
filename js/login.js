@@ -36,9 +36,9 @@
 
             alert('Login successful! Welcome to the Barangay Management System.');
             if (user.role === 'admin') {
-                window.location.href = '../admin/admin.html';
+                window.location.href = '../Barangay-Management-System/admin/admin.html';
             } else {
-                window.location.href = 'home.html';
+                window.location.href = '../Barangay-Management-System/home.html';
             }
         });
         
