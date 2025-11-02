@@ -7,7 +7,7 @@ const bcrypt = require('bcrypt');
 const { Pool } = require('pg');
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5432;
 
 // Middleware
 app.use(cors());
@@ -18,29 +18,33 @@ app.use(bodyParser.urlencoded({ extended: true }));
 let db = null;
 let useDatabase = false;
 
-if (process.env.DATABASE_URL) {
-  console.log('✅ PostgreSQL database detected - using database mode');
-  db = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-  });
-  useDatabase = true;
-  
-  // Test database connection
-  db.query('SELECT NOW()', (err, res) => {
-    if (err) {
-      console.error('❌ Database connection error:', err);
-      useDatabase = false;
-    } else {
-      console.log('✅ Database connected successfully at:', res.rows[0].now);
-    }
-  });
+if (!process.env.DATABASE_URL) {
+  console.log('⚠️  No DATABASE_URL found. Running in in-memory storage mode.');
 } else {
-  console.log('⚠️  No database detected - using in-memory storage');
-  console.log('📖 To add a FREE PostgreSQL database:');
-  console.log('   1. Click "Tools" in the left sidebar');
-  console.log('   2. Select "Database"');
-  console.log('   3. Click "Create a database"');
+  if (process.env.DATABASE_URL) {
+    console.log('✅ DATABASE_URL detected. Attempting to use PostgreSQL.');
+    db = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    });
+    useDatabase = true;
+    
+    // Test database connection
+    db.query('SELECT NOW()', (err, res) => {
+      if (err) {
+        console.error('❌ Database connection error:', err);
+        useDatabase = false;
+      } else {
+        console.log('✅ Database connected successfully at:', res.rows[0].now);
+      }
+    });
+  } else {
+    console.log('⚠️  No database detected - using in-memory storage');
+    console.log('📖 To add a FREE PostgreSQL database:');
+    console.log('   1. Click "Tools" in the left sidebar');
+    console.log('   2. Select "Database"');
+    console.log('   3. Click "Create a database"');
+  }
 }
 
 // In-memory storage (fallback when no database)
@@ -538,11 +542,11 @@ app.post('/api/import', async (req, res) => {
 });
 
 // Serve static files from public directory
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname)));
 
 // Serve index.html for root path
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // Start server
