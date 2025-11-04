@@ -215,7 +215,9 @@ app.get('/api/:collection', async (req, res) => {
   if (useDatabase) {
     try {
       // NOTE: collection should be validated in production to avoid SQL injection.
-      const result = await db.query(`SELECT * FROM ${collection} ORDER BY id`);
+  // Primary key column names in this database are named like `${collection}_id` (e.g. users -> users_id)
+  const pk = `${collection}_id`;
+  const result = await db.query(`SELECT * FROM ${collection} ORDER BY ${pk}`);
       res.json(result.rows);
     } catch (error) {
       console.error(`Error fetching ${collection}:`, error);
@@ -236,7 +238,8 @@ app.get('/api/:collection/:id', async (req, res) => {
   
   if (useDatabase) {
     try {
-      const result = await db.query(`SELECT * FROM ${collection} WHERE id = $1`, [id]);
+  const pk = `${collection}_id`;
+  const result = await db.query(`SELECT * FROM ${collection} WHERE ${pk} = $1`, [id]);
       if (result.rows.length > 0) {
         res.json(result.rows[0]);
       } else {
@@ -332,27 +335,27 @@ app.put('/api/:collection/:id', async (req, res) => {
       
       switch(collection) {
         case 'residents':
-          query = 'UPDATE residents SET name = $1, age = $2, address = $3, contact = $4 WHERE id = $5 RETURNING *';
+          query = 'UPDATE residents SET name = $1, age = $2, address = $3, contact = $4 WHERE residents_id = $5 RETURNING *';
           values = [data.name, data.age, data.address, data.contact, id];
           break;
         case 'documents':
-          query = 'UPDATE documents SET type = $1, resident = $2, date = $3, status = $4 WHERE id = $5 RETURNING *';
+          query = 'UPDATE documents SET type = $1, resident = $2, date = $3, status = $4 WHERE documents_id = $5 RETURNING *';
           values = [data.type, data.resident, data.date, data.status, id];
           break;
         case 'officials':
-          query = 'UPDATE officials SET name = $1, position = $2, contact = $3 WHERE id = $4 RETURNING *';
+          query = 'UPDATE officials SET name = $1, position = $2, contact = $3 WHERE officials_id = $4 RETURNING *';
           values = [data.name, data.position, data.contact, id];
           break;
         case 'events':
-          query = 'UPDATE events SET title = $1, date = $2, time = $3, location = $4 WHERE id = $5 RETURNING *';
+          query = 'UPDATE events SET title = $1, date = $2, time = $3, location = $4 WHERE events_id = $5 RETURNING *';
           values = [data.title, data.date, data.time, data.location, id];
           break;
         case 'complaints':
-          query = 'UPDATE complaints SET title = $1, details = $2, date = $3 WHERE id = $4 RETURNING *';
+          query = 'UPDATE complaints SET title = $1, details = $2, date = $3 WHERE complaints_id = $4 RETURNING *';
           values = [data.title, data.details, data.date, id];
           break;
         case 'users':
-          query = 'UPDATE users SET username = $1, password = $2, role = $3 WHERE id = $4 RETURNING *';
+          query = 'UPDATE users SET username = $1, password = $2, role = $3 WHERE users_id = $4 RETURNING *';
           values = [data.username, data.password, data.role, id];
           break;
         default:
@@ -390,7 +393,8 @@ app.delete('/api/:collection/:id', async (req, res) => {
   
   if (useDatabase) {
     try {
-      const result = await db.query(`DELETE FROM ${collection} WHERE id = $1 RETURNING *`, [id]);
+  const pk = `${collection}_id`;
+  const result = await db.query(`DELETE FROM ${collection} WHERE ${pk} = $1 RETURNING *`, [id]);
       if (result.rows.length > 0) {
         res.json(result.rows[0]);
       } else {
