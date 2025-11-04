@@ -18,17 +18,30 @@
                 return;
             }
 
+            // Only allow non-admin users if status is Active
+            if (user.role !== 'admin' && user.status !== 'Active') {
+                alert('Your account is not yet active. Please wait for admin approval.');
+                return;
+            }
+
             // Store user session
             localStorage.setItem('userLoggedIn', 'true');
             localStorage.setItem('currentUser', username);
             if (user.role === 'admin') localStorage.setItem('isAdmin', 'true'); else localStorage.removeItem('isAdmin');
 
-            // Ensure resident record exists for normal users
+            // Ensure resident record exists for normal users (if not present, try create using user's name and any registration-provided details)
             if (user.role !== 'admin') {
                 let residents = JSON.parse(localStorage.getItem('residents') || '[]');
-                const existingUser = residents.find(r => r.name.toLowerCase() === username.toLowerCase());
+                const existingUser = residents.find(r => (r.username && r.username === username) || (r.name && r.name.toLowerCase() === (user.name || username).toLowerCase()));
                 if (!existingUser) {
-                    const newResident = { id: Date.now(), name: username, age: 25, address: 'Barangay Resident', contact: '09000000000' };
+                    const newResident = {
+                        id: Date.now(),
+                        username: user.username || username,
+                        name: user.name || username,
+                        age: user.age || 25,
+                        address: user.address || 'Barangay Resident',
+                        contact: user.contact || '09000000000'
+                    };
                     residents.push(newResident);
                     localStorage.setItem('residents', JSON.stringify(residents));
                 }
@@ -36,42 +49,63 @@
 
             alert('Login successful! Welcome to the Barangay Management System.');
             if (user.role === 'admin') {
-                window.location.href = '../Barangay-Management-System/admin/admin.html';
+                window.location.href = 'admin/admin.html';
             } else {
-                window.location.href = '../Barangay-Management-System/home.html';
+                window.location.href = 'home.html';
             }
         });
         
-        function showRegister() {
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value.trim();
+        // Toggle register card visibility and handle registration form
+        const showBtn = document.getElementById('showRegisterBtn');
+        const registerCard = document.getElementById('registerCard');
+        const cancelRegisterBtn = document.getElementById('cancelRegisterBtn');
+        const registerForm = document.getElementById('registerForm');
+        if (showBtn && registerCard) {
+            showBtn.addEventListener('click', () => { registerCard.style.display = 'block'; document.getElementById('reg_username').focus(); document.getElementById('loginForm').style.display = 'none'; });
+        }
+        if (cancelRegisterBtn && registerCard) {
+            cancelRegisterBtn.addEventListener('click', () => { registerCard.style.display = 'none'; document.getElementById('loginForm').style.display = 'block'; });
+        }
+        // toggle links
+        const toRegisterLink = document.getElementById('toRegisterLink');
+        const toLoginLink = document.getElementById('toLoginLink');
+        if (toRegisterLink) {
+            toRegisterLink.addEventListener('click', function(e) { e.preventDefault(); registerCard.style.display = 'block'; document.getElementById('loginForm').style.display = 'none'; document.getElementById('reg_username').focus(); });
+        }
+        if (toLoginLink) {
+            toLoginLink.addEventListener('click', function(e) { e.preventDefault(); registerCard.style.display = 'none'; document.getElementById('loginForm').style.display = 'block'; document.getElementById('username').focus(); });
+        }
+        if (registerForm) {
+            registerForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const username = document.getElementById('reg_username').value.trim();
+                const password = document.getElementById('reg_password').value.trim();
+                const fullname = document.getElementById('reg_name').value.trim();
+                const ageVal = document.getElementById('reg_age').value.trim();
+                const age = ageVal ? parseInt(ageVal, 10) || undefined : undefined;
+                const address = document.getElementById('reg_address').value.trim();
+                const contact = document.getElementById('reg_contact').value.trim();
 
-            if (!username || !password) {
-                alert('Please fill in username and password to register.');
-                return;
-            }
+                if (!username || !password || !fullname) {
+                    alert('Please fill in username, password and full name.');
+                    return;
+                }
 
-            const users = JSON.parse(localStorage.getItem('users') || '[]');
-            if (users.find(u => u.username === username)) {
-                alert('User already exists. Please login instead.');
-                return;
-            }
+                const users = JSON.parse(localStorage.getItem('users') || '[]');
+                if (users.find(u => u.username === username)) {
+                    alert('User already exists. Please login instead.');
+                    return;
+                }
 
-            // Create normal user role by default
-            users.push({ username, password, role: 'user' });
-            localStorage.setItem('users', JSON.stringify(users));
+                const newUser = { id: Date.now(), username, name: fullname, password, role: 'user', status: 'Pending', age: age, address: address, contact: contact };
+                users.push(newUser);
+                localStorage.setItem('users', JSON.stringify(users));
 
-            // Also create a resident record
-            let residents = JSON.parse(localStorage.getItem('residents') || '[]');
-            residents.push({ id: Date.now(), name: username, age: 25, address: 'Barangay Resident', contact: '09000000000' });
-            localStorage.setItem('residents', JSON.stringify(residents));
-
-            localStorage.setItem('userLoggedIn', 'true');
-            localStorage.setItem('currentUser', username);
-            localStorage.removeItem('isAdmin');
-
-            alert('Registration successful! Welcome to the Barangay Management System.');
-            window.location.href = 'home.html';
+                alert('Registration submitted. Your account is pending admin approval. You will be notified once approved.');
+                // hide register card and reset form
+                registerCard.style.display = 'none';
+                registerForm.reset();
+            });
         }
         
         // Check if already logged in — validate session before redirecting

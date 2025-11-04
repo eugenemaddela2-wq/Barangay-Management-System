@@ -70,11 +70,11 @@
         }
 
         function logout() {
+            if (typeof window.logout === 'function') return window.logout();
             if (confirm('Are you sure you want to logout?')) {
                 localStorage.removeItem('userLoggedIn');
                 localStorage.removeItem('currentUser');
-                alert('Logged out successfully!');
-                window.location.href = 'login.html';
+                window.location.replace('/index.html');
             }
         }
     

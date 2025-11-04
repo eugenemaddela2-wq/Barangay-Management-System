@@ -96,9 +96,22 @@ function updateStatistics() {
 }
 
 function logout() {
-    if (confirm('Are you sure you want to logout?')) {
-        alert('Logged out successfully!');
-        window.location.href = '../Barangay-Management-System/index.html';
+    if (!confirm('Are you sure you want to logout?')) return;
+    // Call server logout endpoint (best-effort) to allow server to clear sessions and set no-cache headers
+    try {
+        fetch('/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
+    } catch (e) { /* ignore */ }
+    // Clear client-side session state
+    try {
+        localStorage.removeItem('userLoggedIn');
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('isAdmin');
+    } catch (e) { }
+    // Replace location so back button won't return to authenticated pages
+    try {
+        window.location.replace('/index.html');
+    } catch (e) {
+        window.location.href = '/index.html';
     }
 }
 

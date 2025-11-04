@@ -1,50 +1,53 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
 const path = require('path');
-const bcrypt = require('bcrypt');
-const { Pool } = require('pg');
+
+// Try to load optional dependencies and provide safe fallbacks so the server can start
+let cors;
+try { cors = require('cors'); } catch (e) { cors = null; console.warn('Optional dependency "cors" not installed — using basic CORS headers fallback'); }
+
+// bcrypt may require native build tools on some platforms; prefer bcrypt but fall back to bcryptjs if unavailable
+let bcrypt;
+try { bcrypt = require('bcrypt'); } catch (e) {
+  try { bcrypt = require('bcryptjs'); console.warn('Using "bcryptjs" as a fallback for password hashing'); } catch (e2) { bcrypt = null; console.warn('No bcrypt available — password hashing features may be limited'); }
+}
+const db = require('./db'); // use centralized DB helper
 
 const app = express();
-const PORT = process.env.PORT || 5432;
+// Use a web-friendly default port. 5432 is commonly used by Postgres and may conflict.
+const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+// Apply CORS: prefer the cors package when available, otherwise set basic headers
+if (cors) {
+  app.use(cors());
+} else {
+  app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') return res.sendStatus(200);
+    next();
+  });
+}
 
-// Database connection setup
-let db = null;
+// Use built-in Express body parsers (no body-parser dependency required)
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Determine whether a DATABASE_URL is present
 let useDatabase = false;
-
 if (!process.env.DATABASE_URL) {
   console.log('⚠️  No DATABASE_URL found. Running in in-memory storage mode.');
 } else {
-  if (process.env.DATABASE_URL) {
-    console.log('✅ DATABASE_URL detected. Attempting to use PostgreSQL.');
-    db = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false }
+  useDatabase = true;
+  // Test DB connectivity
+  db.query('SELECT NOW()')
+    .then(res => console.log('✅ Database connected successfully at:', res.rows[0].now))
+    .catch(err => {
+      console.error('❌ Database connection error:', err);
+      useDatabase = false;
     });
-    useDatabase = true;
-    
-    // Test database connection
-    db.query('SELECT NOW()', (err, res) => {
-      if (err) {
-        console.error('❌ Database connection error:', err);
-        useDatabase = false;
-      } else {
-        console.log('✅ Database connected successfully at:', res.rows[0].now);
-      }
-    });
-  } else {
-    console.log('⚠️  No database detected - using in-memory storage');
-    console.log('📖 To add a FREE PostgreSQL database:');
-    console.log('   1. Click "Tools" in the left sidebar');
-    console.log('   2. Select "Database"');
-    console.log('   3. Click "Create a database"');
-  }
 }
 
 // In-memory storage (fallback when no database)
@@ -83,8 +86,9 @@ let storage = {
 app.get('/api/:collection', async (req, res) => {
   const { collection } = req.params;
   
-  if (useDatabase && db) {
+  if (useDatabase) {
     try {
+      // NOTE: collection should be validated in production to avoid SQL injection.
       const result = await db.query(`SELECT * FROM ${collection} ORDER BY id`);
       res.json(result.rows);
     } catch (error) {
@@ -104,7 +108,7 @@ app.get('/api/:collection', async (req, res) => {
 app.get('/api/:collection/:id', async (req, res) => {
   const { collection, id } = req.params;
   
-  if (useDatabase && db) {
+  if (useDatabase) {
     try {
       const result = await db.query(`SELECT * FROM ${collection} WHERE id = $1`, [id]);
       if (result.rows.length > 0) {
@@ -135,7 +139,7 @@ app.post('/api/:collection', async (req, res) => {
   const { collection } = req.params;
   const data = req.body;
   
-  if (useDatabase && db) {
+  if (useDatabase) {
     try {
       let query, values;
       
@@ -193,7 +197,7 @@ app.put('/api/:collection/:id', async (req, res) => {
   const { collection, id } = req.params;
   const data = req.body;
   
-  if (useDatabase && db) {
+  if (useDatabase) {
     try {
       let query, values;
       
@@ -255,7 +259,7 @@ app.put('/api/:collection/:id', async (req, res) => {
 app.delete('/api/:collection/:id', async (req, res) => {
   const { collection, id } = req.params;
   
-  if (useDatabase && db) {
+  if (useDatabase) {
     try {
       const result = await db.query(`DELETE FROM ${collection} WHERE id = $1 RETURNING *`, [id]);
       if (result.rows.length > 0) {
@@ -286,7 +290,7 @@ app.delete('/api/:collection/:id', async (req, res) => {
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   
-  if (useDatabase && db) {
+  if (useDatabase) {
     try {
       const result = await db.query('SELECT * FROM users WHERE username = $1 AND password = $2', [username, password]);
       if (result.rows.length > 0) {
@@ -319,7 +323,7 @@ app.post('/api/login', async (req, res) => {
 app.post('/api/register', async (req, res) => {
   const { username, password } = req.body;
   
-  if (useDatabase && db) {
+  if (useDatabase) {
     try {
       // Check if user exists
       const existing = await db.query('SELECT * FROM users WHERE username = $1', [username]);
@@ -376,7 +380,7 @@ app.post('/api/register', async (req, res) => {
 
 // Initialize database with sample data
 app.post('/api/init-database', async (req, res) => {
-  if (!useDatabase || !db) {
+  if (!useDatabase) {
     return res.status(400).json({ error: 'Database not available' });
   }
   
@@ -430,7 +434,7 @@ app.post('/api/init-database', async (req, res) => {
 
 // Export all data
 app.get('/api/export', async (req, res) => {
-  if (useDatabase && db) {
+  if (useDatabase) {
     try {
       const residents = await db.query('SELECT * FROM residents');
       const documents = await db.query('SELECT * FROM documents');
@@ -460,7 +464,7 @@ app.get('/api/export', async (req, res) => {
 app.post('/api/import', async (req, res) => {
   const importedData = req.body;
   
-  if (useDatabase && db) {
+  if (useDatabase) {
     try {
       // Clear existing data
       await db.query('TRUNCATE residents, documents, events, officials, complaints, users RESTART IDENTITY CASCADE');
@@ -541,17 +545,40 @@ app.post('/api/import', async (req, res) => {
   }
 });
 
-// Serve static files from public directory
-app.use(express.static(path.join(__dirname)));
+// Serve static files from project root and set no-cache headers to prevent pages being shown after logout
+app.use(express.static(path.join(__dirname), {
+  setHeaders: function (res, filePath) {
+    // Prevent browser caching of HTML pages to avoid back-button showing protected content after logout
+    if (filePath.endsWith('.html') || filePath.endsWith('.htm')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
+    }
+  }
+}));
+
+// Logout endpoint (client may call this to let server respond and ensure any server-side session cleared)
+app.post('/logout', (req, res) => {
+  // If using server-side sessions, clear them here. For now just send headers to prevent caching.
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
+  res.json({ success: true });
+});
 
 // Serve index.html for root path
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// Health check endpoint
+app.get('/health', (req, res) => res.status(200).send('OK'));
+
 // Start server
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🚀 Barangay Management System running on http://0.0.0.0:${PORT}`);
+app.listen(PORT, () => {
+  console.log(`\n🚀 Barangay Management System running on http://localhost:${PORT}`);
   console.log(`📡 API endpoints available at /api/*\n`);
   
   if (useDatabase) {
