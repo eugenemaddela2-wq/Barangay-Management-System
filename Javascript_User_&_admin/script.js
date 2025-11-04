@@ -109,9 +109,18 @@ function logout() {
     } catch (e) { }
     // Replace location so back button won't return to authenticated pages
     try {
-        window.location.replace('/index.html');
+        // Use origin-aware redirect when served over http(s). If the app is opened via file://,
+        // fall back to a relative redirect so the browser doesn't attempt to load a non-existent
+        // absolute file path (e.g., file:///C:/index.html).
+        if (typeof window.location !== 'undefined' && window.location.protocol && window.location.protocol.startsWith('http')) {
+            const base = window.location.origin || (window.location.protocol + '//' + window.location.host);
+            window.location.replace(base + '/index.html');
+        } else {
+            // relative redirect works for file:// and simple local file previews
+            window.location.replace('index.html');
+        }
     } catch (e) {
-        window.location.href = '/index.html';
+        try { window.location.href = 'index.html'; } catch (e2) { /* ignore */ }
     }
 }
 
@@ -208,3 +217,6 @@ navStyle.textContent = `
     .toggleBox { z-index: 20001 !important; pointer-events: auto !important; }
 `;
 document.head.appendChild(navStyle);
+
+// expose the shared logout handler under a stable name so page scripts can safely delegate
+window.__shared_logout__ = logout;

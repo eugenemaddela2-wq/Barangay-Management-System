@@ -17,7 +17,12 @@ const AuthManager = {
         try {
             // Try server login first
             if (SyncManager.isOnline) {
-                const response = await fetch('/api/login', {
+                // Get API base URL - use window.location.origin for same-origin or explicit cloud URL
+                const apiBase = window.location.protocol === 'file:' 
+                    ? 'http://localhost:5000' // Local development with file:// protocol
+                    : window.location.origin; // Server deployment
+
+                const response = await fetch(`${apiBase}/api/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
@@ -54,7 +59,12 @@ const AuthManager = {
         try {
             // Try server registration first
             if (SyncManager.isOnline) {
-                const response = await fetch('/api/register', {
+                // Get API base URL - use window.location.origin for same-origin or explicit cloud URL
+                const apiBase = window.location.protocol === 'file:' 
+                    ? 'http://localhost:5000' // Local development with file:// protocol
+                    : window.location.origin; // Server deployment
+
+                const response = await fetch(`${apiBase}/api/register`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
@@ -92,7 +102,22 @@ const AuthManager = {
             
             // Mark users for sync when online
             SyncManager.markForSync('users');
+            // Notify user that registration was saved locally and will sync when online
+            try { if (typeof showMessage === 'function') showMessage('Registration saved locally; will sync when online', 'warning'); } catch(e) {}
 
+            // Try immediate sync if we become online soon
+            try {
+                if (typeof SyncManager !== 'undefined') {
+                    // Re-check connection and attempt to sync the users collection immediately when possible
+                    await SyncManager.checkConnection();
+                    if (SyncManager.isOnline) {
+                        await SyncManager.syncCollection('users');
+                    }
+                }
+            } catch (syncErr) {
+                // Ignore sync errors here; SyncManager will retry periodically
+                console.warn('Immediate sync attempt failed:', syncErr);
+            }
             return { success: true, online: false };
         } catch (err) {
             console.warn('Registration error:', err);

@@ -18,36 +18,78 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-// Apply CORS: prefer the cors package when available, otherwise set basic headers
-if (cors) {
-  app.use(cors());
-} else {
-  app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    if (req.method === 'OPTIONS') return res.sendStatus(200);
-    next();
-  });
-}
+// Always apply CORS headers for local development and cloud deployment
+app.use((req, res, next) => {
+  // Allow specific origins or use * for development
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
 
 // Use built-in Express body parsers (no body-parser dependency required)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Determine whether a DATABASE_URL is present
-let useDatabase = false;
-if (!process.env.DATABASE_URL) {
+// Prefer using the database when DATABASE_URL is present. Do not permanently disable DB usage
+// on a transient startup failure — handle errors per-request instead.
+const useDatabase = !!process.env.DATABASE_URL;
+if (!useDatabase) {
   console.log('⚠️  No DATABASE_URL found. Running in in-memory storage mode.');
 } else {
-  useDatabase = true;
-  // Test DB connectivity
-  db.query('SELECT NOW()')
-    .then(res => console.log('✅ Database connected successfully at:', res.rows[0].now))
-    .catch(err => {
-      console.error('❌ Database connection error:', err);
-      useDatabase = false;
-    });
+  // Test DB connectivity and initialize tables
+  const fs = require('fs');
+  const path = require('path');
+  
+  // Read and execute the table creation SQL
+  const initSQL = fs.readFileSync(path.join(__dirname, 'create_postgres_tables.sql'), 'utf8');
+  
+  // Initialize database
+  async function initDatabase() {
+    try {
+      // Test connection first
+      const connTest = await db.testConnection();
+      if (!connTest.success) {
+        throw new Error(`Database connection failed: ${connTest.error}`);
+      }
+      console.log('✅ Database connected successfully at:', connTest.timestamp);
+
+      // Read and execute initialization SQL
+      const initSQL = fs.readFileSync(path.join(__dirname, 'db', 'init.sql'), 'utf8');
+      
+      // Split the SQL into individual statements (split on semicolons but handle $$-delimited blocks)
+      const statements = initSQL.split(';').filter(stmt => stmt.trim());
+      
+      // Execute each statement in sequence
+      for (const stmt of statements) {
+        if (stmt.trim()) {
+          await db.query(stmt);
+        }
+      }
+
+      console.log('✅ Database tables verified/created');
+      return true;
+    } catch (err) {
+      console.error('❌ Database setup failed:', err);
+      return false;
+    }
+  }
+
+  // Initialize database but don't block server start
+  initDatabase().then(success => {
+    if (success) {
+      console.log('🔄 Database initialization complete');
+    } else {
+      console.warn('⚠️ Database initialization failed - will retry operations per-request');
+    }
+  });
 }
 
 // In-memory storage (fallback when no database)
@@ -81,6 +123,90 @@ let storage = {
 };
 
 // API Routes
+
+// Specific auth endpoints (placed before generic collection routes so they are matched first)
+// Login endpoint
+app.post('/api/login', async (req, res) => {
+  const { username, password } = req.body;
+  
+  if (useDatabase) {
+    try {
+      const result = await db.query('SELECT * FROM users WHERE username = $1 AND password = $2', [username, password]);
+      if (result.rows.length > 0) {
+        const user = result.rows[0];
+        return res.json({ 
+          success: true, 
+          user: { username: user.username, role: user.role } 
+        });
+      } else {
+        return res.status(401).json({ success: false, error: 'Invalid credentials' });
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  } else {
+    const user = storage.users.find(u => u.username === username && u.password === password);
+    if (user) {
+      return res.json({ success: true, user: { username: user.username, role: user.role } });
+    } else {
+      return res.status(401).json({ success: false, error: 'Invalid credentials' });
+    }
+  }
+});
+
+// Register endpoint
+app.post('/api/register', async (req, res) => {
+  const { username, password } = req.body;
+  
+  if (!username || !password) {
+    return res.status(400).json({ success: false, error: 'Username and password are required' });
+  }
+
+  if (useDatabase) {
+    try {
+      const connTest = await db.testConnection();
+      if (!connTest.success) {
+        console.error('Database connection failed during registration:', connTest.error);
+        return res.status(503).json({ success: false, error: 'Database connection failed. Please try again.' });
+      }
+
+      const existing = await db.query('SELECT * FROM users WHERE username = $1', [username]);
+      if (existing.rows.length > 0) {
+        return res.status(400).json({ success: false, error: 'User already exists' });
+      }
+
+      const client = await db.pool.connect();
+      try {
+        await client.query('BEGIN');
+        const userResult = await client.query('INSERT INTO users (username, password, role) VALUES ($1, $2, $3) RETURNING *', [username, password, 'user']);
+        await client.query('INSERT INTO residents (name, age, address, contact) VALUES ($1, $2, $3, $4) RETURNING *', [username, 25, 'Barangay Resident', '09000000000']);
+        await client.query('COMMIT');
+        const user = userResult.rows[0];
+        return res.status(201).json({ success: true, user: { username: user.username, role: user.role } });
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      return res.status(500).json({ success: false, error: 'Registration failed: ' + error.message });
+    }
+  } else {
+    const existingUser = storage.users.find(u => u.username === username);
+    if (existingUser) {
+      return res.status(400).json({ success: false, error: 'User already exists' });
+    } else {
+      const newUser = { username, password, role: 'user' };
+      storage.users.push(newUser);
+      const newResident = { id: Date.now(), name: username, age: 25, address: 'Barangay Resident', contact: '09000000000' };
+      storage.residents.push(newResident);
+      return res.status(201).json({ success: true, user: { username: newUser.username, role: newUser.role } });
+    }
+  }
+});
 
 // Get all items from a collection
 app.get('/api/:collection', async (req, res) => {
@@ -135,9 +261,12 @@ app.get('/api/:collection/:id', async (req, res) => {
 });
 
 // Create a new item
-app.post('/api/:collection', async (req, res) => {
+app.post('/api/:collection', async (req, res, next) => {
   const { collection } = req.params;
   const data = req.body;
+
+  // If the collection matches reserved auth endpoints, skip this generic handler
+  if (collection === 'register' || collection === 'login') return next();
   
   if (useDatabase) {
     try {
@@ -323,34 +452,68 @@ app.post('/api/login', async (req, res) => {
 app.post('/api/register', async (req, res) => {
   const { username, password } = req.body;
   
+  if (!username || !password) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Username and password are required' 
+    });
+  }
+  
   if (useDatabase) {
     try {
+      // First test database connection
+      const connTest = await db.testConnection();
+      if (!connTest.success) {
+        console.error('Database connection failed during registration:', connTest.error);
+        return res.status(503).json({ 
+          success: false, 
+          error: 'Database connection failed. Please try again.' 
+        });
+      }
+
       // Check if user exists
       const existing = await db.query('SELECT * FROM users WHERE username = $1', [username]);
       if (existing.rows.length > 0) {
         return res.status(400).json({ success: false, error: 'User already exists' });
       }
       
-      // Create user
-      const userResult = await db.query(
-        'INSERT INTO users (username, password, role) VALUES ($1, $2, $3) RETURNING *',
-        [username, password, 'user']
-      );
-      
-      // Create resident record
-      await db.query(
-        'INSERT INTO residents (name, age, address, contact) VALUES ($1, $2, $3, $4)',
-        [username, 25, 'Barangay Resident', '09000000000']
-      );
-      
-      const user = userResult.rows[0];
-      res.status(201).json({ 
-        success: true, 
-        user: { username: user.username, role: user.role } 
-      });
+      // Begin transaction
+      const client = await db.pool.connect();
+      try {
+        await client.query('BEGIN');
+        
+        // Create user
+        const userResult = await client.query(
+          'INSERT INTO users (username, password, role) VALUES ($1, $2, $3) RETURNING *',
+          [username, password, 'user']
+        );
+        
+        // Create resident record
+        await client.query(
+          'INSERT INTO residents (name, age, address, contact) VALUES ($1, $2, $3, $4) RETURNING *',
+          [username, 25, 'Barangay Resident', '09000000000']
+        );
+        
+        await client.query('COMMIT');
+        
+        const user = userResult.rows[0];
+        console.log('✅ User registered (DB):', user.username);
+        res.status(201).json({ 
+          success: true, 
+          user: { username: user.username, role: user.role } 
+        });
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
     } catch (error) {
       console.error('Registration error:', error);
-      res.status(500).json({ success: false, error: error.message });
+      res.status(500).json({ 
+        success: false, 
+        error: 'Registration failed: ' + error.message 
+      });
     }
   } else {
     const existingUser = storage.users.find(u => u.username === username);
@@ -370,6 +533,7 @@ app.post('/api/register', async (req, res) => {
       };
       storage.residents.push(newResident);
       
+      console.log('✅ User registered (local):', newUser.username);
       res.status(201).json({ 
         success: true, 
         user: { username: newUser.username, role: newUser.role } 
@@ -576,21 +740,51 @@ app.get('/', (req, res) => {
 // Health check endpoint
 app.get('/health', async (req, res) => {
   try {
-    // Test database connection
+    // Test database connection with detailed status
+    let dbStatus = { state: 'not-used', details: null };
     if (useDatabase) {
-      await db.query('SELECT 1');
+      try {
+        const connTest = await db.testConnection();
+        if (connTest.success) {
+          dbStatus = { 
+            state: 'connected',
+            timestamp: connTest.timestamp,
+            details: null
+          };
+        } else {
+          dbStatus = {
+            state: 'error',
+            details: connTest.error
+          };
+        }
+      } catch (dbErr) {
+        console.error('Health DB check failed:', dbErr);
+        dbStatus = {
+          state: 'error',
+          details: dbErr.message
+        };
+      }
     }
-    // Send a more detailed health status
+
+    // Get database settings (without sensitive info)
+    const dbConfig = {
+      host: process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).hostname : null,
+      database: process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).pathname.slice(1) : null,
+      ssl: true
+    };
+
+    // Always return 200 with detailed status
     res.status(200).json({
-      status: 'healthy',
+      status: dbStatus.state === 'error' ? 'degraded' : 'healthy',
       timestamp: new Date().toISOString(),
-      database: useDatabase ? 'connected' : 'not-used',
+      database: dbStatus,
+      config: dbConfig,
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       nodeVersion: process.version
     });
   } catch (error) {
-    console.error('Health check failed:', error);
+    console.error('Unexpected health check failure:', error);
     res.status(500).json({
       status: 'unhealthy',
       error: error.message,

@@ -54,7 +54,7 @@
 
         function logout() {
             // Delegate to shared logout handler which clears session and prevents back-navigation
-            if (typeof window.logout === 'function') return window.logout();
+            if (typeof window.__shared_logout__ === 'function') return window.__shared_logout__();
             // fallback
             if (confirm('Are you sure you want to logout?')) {
                 localStorage.removeItem('userLoggedIn');

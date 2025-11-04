@@ -31,7 +31,12 @@ const SyncManager = {
     // Check if we can reach the server
     async checkConnection() {
         try {
-            const health = await fetch('/health');
+            // Get API base URL - use window.location.origin for same-origin or explicit cloud URL
+            const apiBase = window.location.protocol === 'file:' 
+                ? 'http://localhost:5000' // Local development with file:// protocol
+                : window.location.origin; // Server deployment
+
+            const health = await fetch(`${apiBase}/health`);
             this.isOnline = health.ok;
             if (this.isOnline) {
                 this.notifyOnline();
@@ -98,8 +103,13 @@ const SyncManager = {
         if (!this.isOnline) return;
 
         try {
+            // Get API base URL - use window.location.origin for same-origin or explicit cloud URL
+            const apiBase = window.location.protocol === 'file:' 
+                ? 'http://localhost:5000' // Local development with file:// protocol
+                : window.location.origin; // Server deployment
+
             // Get server data first
-            const serverRes = await fetch(`/api/${collection}`);
+            const serverRes = await fetch(`${apiBase}/api/${collection}`);
             if (!serverRes.ok) return;
             const serverData = await serverRes.json();
 

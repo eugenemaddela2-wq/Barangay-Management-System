@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         function logout() {
-            if (typeof window.logout === 'function') return window.logout();
+            if (typeof window.__shared_logout__ === 'function') return window.__shared_logout__();
             if (confirm('Are you sure you want to logout?')) {
                 localStorage.removeItem('userLoggedIn');
                 localStorage.removeItem('currentUser');
