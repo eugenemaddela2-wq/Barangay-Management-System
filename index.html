@@ -17,7 +17,20 @@
     
     <div class="title">
         <h1>BARANGAY MANAGEMENT SYSTEM</h1>
+        <div id="loading-message" style="display: none; text-align: center; padding: 20px; color: #666;">
+            <p>If the system is taking time to load, please wait 30-60 seconds.</p>
+            <p>Our free tier server may need to wake up from sleep mode.</p>
+        </div>
     </div>
+    
+    <script>
+        // Show loading message if page takes more than 3 seconds to fully load
+        setTimeout(() => {
+            if (document.readyState !== 'complete') {
+                document.getElementById('loading-message').style.display = 'block';
+            }
+        }, 3000);
+    </script>
     
     <div class="main-content">
         <div class="welcome-section">

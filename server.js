@@ -574,10 +574,33 @@ app.get('/', (req, res) => {
 });
 
 // Health check endpoint
-app.get('/health', (req, res) => res.status(200).send('OK'));
+app.get('/health', async (req, res) => {
+  try {
+    // Test database connection
+    if (useDatabase) {
+      await db.query('SELECT 1');
+    }
+    // Send a more detailed health status
+    res.status(200).json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      database: useDatabase ? 'connected' : 'not-used',
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      nodeVersion: process.version
+    });
+  } catch (error) {
+    console.error('Health check failed:', error);
+    res.status(500).json({
+      status: 'unhealthy',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
 // Start server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`\n🚀 Barangay Management System running on http://localhost:${PORT}`);
   console.log(`📡 API endpoints available at /api/*\n`);
   
@@ -586,4 +609,33 @@ app.listen(PORT, () => {
   } else {
     console.log('💾 Using in-memory storage (data will be lost on restart)');
   }
+});
+
+// Handle graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('Received SIGTERM. Performing graceful shutdown...');
+  server.close(() => {
+    console.log('Server closed. Database connections are being terminated.');
+    // Close database connection pool
+    if (db.pool) {
+      db.pool.end(() => {
+        console.log('Database connections closed.');
+        process.exit(0);
+      });
+    } else {
+      process.exit(0);
+    }
+  });
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  // Keep the process running but log the error
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Keep the process running but log the error
 });
