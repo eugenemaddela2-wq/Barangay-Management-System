@@ -48,12 +48,20 @@ if (!useDatabase) {
   const fs = require('fs');
   const path = require('path');
   
-  // Read and execute the table creation SQL
-  const initSQL = fs.readFileSync(path.join(__dirname, 'create_postgres_tables.sql'), 'utf8');
-  
   // Initialize database
   async function initDatabase() {
+    let initSQL = '';
+    
+    // Try to read SQL files, with fallback paths
     try {
+      try {
+        initSQL = fs.readFileSync(path.join(__dirname, 'db', 'init.sql'), 'utf8');
+        console.log('✅ Found init.sql in db/ directory');
+      } catch (sqlErr) {
+        initSQL = fs.readFileSync(path.join(__dirname, 'create_postgres_tables.sql'), 'utf8');
+        console.log('✅ Found create_postgres_tables.sql in root directory');
+      }
+      
       // Test connection first
       const connTest = await db.testConnection();
       if (!connTest.success) {
@@ -61,23 +69,20 @@ if (!useDatabase) {
       }
       console.log('✅ Database connected successfully at:', connTest.timestamp);
 
-      // Read and execute initialization SQL
-      const initSQL = fs.readFileSync(path.join(__dirname, 'db', 'init.sql'), 'utf8');
-      
-      // Split the SQL into individual statements (split on semicolons but handle $$-delimited blocks)
-      const statements = initSQL.split(';').filter(stmt => stmt.trim());
-      
-      // Execute each statement in sequence
-      for (const stmt of statements) {
-        if (stmt.trim()) {
-          await db.query(stmt);
+      // Split and execute init SQL if we have any
+      if (initSQL.trim()) {
+        const statements = initSQL.split(';').filter(stmt => stmt.trim());
+        for (const stmt of statements) {
+          if (stmt.trim()) {
+            await db.query(stmt);
+          }
         }
+        console.log('✅ Database tables verified/created');
       }
 
-      console.log('✅ Database tables verified/created');
       return true;
-    } catch (err) {
-      console.error('❌ Database setup failed:', err);
+    } catch (error) {
+      console.error('❌ Database setup failed:', error);
       return false;
     }
   }
@@ -89,15 +94,18 @@ if (!useDatabase) {
     } else {
       console.warn('⚠️ Database initialization failed - will retry operations per-request');
     }
+  }).catch(err => {
+    console.error('❌ Fatal database initialization error:', err);
+    // Keep server running even if DB init fails
   });
 }
 
 // In-memory storage (fallback when no database)
 let storage = {
   residents: [
-    { id: 1, name: 'Juan Dela Cruz', age: 35, address: 'Block 1 Lot 1', contact: '09123456789' },
-    { id: 2, name: 'Maria Santos', age: 28, address: 'Block 2 Lot 5', contact: '09987654321' },
-    { id: 3, name: 'Pedro Garcia', age: 42, address: 'Block 3 Lot 8', contact: '09456789123' }
+    { residents_id: 1, name: 'Juan Dela Cruz', age: 35, address: 'Block 1 Lot 1', contact: '09123456789' },
+    { residents_id: 2, name: 'Maria Santos', age: 28, address: 'Block 2 Lot 5', contact: '09987654321' },
+    { residents_id: 3, name: 'Pedro Garcia', age: 42, address: 'Block 3 Lot 8', contact: '09456789123' }
   ],
   documents: [
     { id: 1, type: 'Barangay Clearance', resident: 'Juan Dela Cruz', date: '2024-01-15', status: 'Issued' },
@@ -105,7 +113,7 @@ let storage = {
     { id: 3, type: 'Business Permit', resident: 'Pedro Garcia', date: '2024-01-25', status: 'Issued' }
   ],
   officials: [
-    { id: 1, name: 'Captain Roberto Cruz', position: 'Barangay Captain', contact: '09111222333' },
+    { users_id: 1, name: 'Captain Roberto Cruz', position: 'Barangay Captain', contact: '09111222333' },
     { id: 2, name: 'Councilor Ana Reyes', position: 'Barangay Councilor', contact: '09444555666' },
     { id: 3, name: 'Secretary Linda Torres', position: 'Barangay Secretary', contact: '09777888999' }
   ],
@@ -117,7 +125,7 @@ let storage = {
   complaints: [],
   users: [
     { username: 'admin1', password: 'adminpass1', role: 'admin' },
-    { username: 'admin2', password: 'adminpass2', role: 'admin' },
+    { username: 'official1', password: 'officialpass', role: 'official' },
     { username: 'demo', password: 'demopass', role: 'user' }
   ]
 };
@@ -217,7 +225,9 @@ app.get('/api/:collection', async (req, res) => {
       // NOTE: collection should be validated in production to avoid SQL injection.
   // Primary key column names in this database are named like `${collection}_id` (e.g. users -> users_id)
   const pk = `${collection}_id`;
-  const result = await db.query(`SELECT * FROM ${collection} ORDER BY ${pk}`);
+  const sql = `SELECT * FROM ${collection} ORDER BY ${pk}`;
+  console.log('DEBUG SQL (GET /api/:collection):', sql);
+  const result = await db.query(sql);
       res.json(result.rows);
     } catch (error) {
       console.error(`Error fetching ${collection}:`, error);
@@ -419,139 +429,14 @@ app.delete('/api/:collection/:id', async (req, res) => {
   }
 });
 
-// Login endpoint
-app.post('/api/login', async (req, res) => {
-  const { username, password } = req.body;
-  
-  if (useDatabase) {
-    try {
-      const result = await db.query('SELECT * FROM users WHERE username = $1 AND password = $2', [username, password]);
-      if (result.rows.length > 0) {
-        const user = result.rows[0];
-        res.json({ 
-          success: true, 
-          user: { username: user.username, role: user.role } 
-        });
-      } else {
-        res.status(401).json({ success: false, error: 'Invalid credentials' });
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      res.status(500).json({ success: false, error: error.message });
-    }
-  } else {
-    const user = storage.users.find(u => u.username === username && u.password === password);
-    if (user) {
-      res.json({ 
-        success: true, 
-        user: { username: user.username, role: user.role } 
-      });
-    } else {
-      res.status(401).json({ success: false, error: 'Invalid credentials' });
-    }
-  }
-});
-
-// Register endpoint
-app.post('/api/register', async (req, res) => {
-  const { username, password } = req.body;
-  
-  if (!username || !password) {
-    return res.status(400).json({ 
-      success: false, 
-      error: 'Username and password are required' 
-    });
-  }
-  
-  if (useDatabase) {
-    try {
-      // First test database connection
-      const connTest = await db.testConnection();
-      if (!connTest.success) {
-        console.error('Database connection failed during registration:', connTest.error);
-        return res.status(503).json({ 
-          success: false, 
-          error: 'Database connection failed. Please try again.' 
-        });
-      }
-
-      // Check if user exists
-      const existing = await db.query('SELECT * FROM users WHERE username = $1', [username]);
-      if (existing.rows.length > 0) {
-        return res.status(400).json({ success: false, error: 'User already exists' });
-      }
-      
-      // Begin transaction
-      const client = await db.pool.connect();
-      try {
-        await client.query('BEGIN');
-        
-        // Create user
-        const userResult = await client.query(
-          'INSERT INTO users (username, password, role) VALUES ($1, $2, $3) RETURNING *',
-          [username, password, 'user']
-        );
-        
-        // Create resident record
-        await client.query(
-          'INSERT INTO residents (name, age, address, contact) VALUES ($1, $2, $3, $4) RETURNING *',
-          [username, 25, 'Barangay Resident', '09000000000']
-        );
-        
-        await client.query('COMMIT');
-        
-        const user = userResult.rows[0];
-        console.log('✅ User registered (DB):', user.username);
-        res.status(201).json({ 
-          success: true, 
-          user: { username: user.username, role: user.role } 
-        });
-      } catch (err) {
-        await client.query('ROLLBACK');
-        throw err;
-      } finally {
-        client.release();
-      }
-    } catch (error) {
-      console.error('Registration error:', error);
-      res.status(500).json({ 
-        success: false, 
-        error: 'Registration failed: ' + error.message 
-      });
-    }
-  } else {
-    const existingUser = storage.users.find(u => u.username === username);
-    if (existingUser) {
-      res.status(400).json({ success: false, error: 'User already exists' });
-    } else {
-      const newUser = { username, password, role: 'user' };
-      storage.users.push(newUser);
-      
-      // Create resident record
-      const newResident = { 
-        id: Date.now(), 
-        name: username, 
-        age: 25, 
-        address: 'Barangay Resident', 
-        contact: '09000000000' 
-      };
-      storage.residents.push(newResident);
-      
-      console.log('✅ User registered (local):', newUser.username);
-      res.status(201).json({ 
-        success: true, 
-        user: { username: newUser.username, role: newUser.role } 
-      });
-    }
-  }
-});
+// (Removed duplicate login/register endpoints - they're already defined above)
 
 // Initialize database with sample data
 app.post('/api/init-database', async (req, res) => {
   if (!useDatabase) {
     return res.status(400).json({ error: 'Database not available' });
   }
-  
+
   try {
     // Insert sample residents
     await db.query(
@@ -560,7 +445,7 @@ app.post('/api/init-database', async (req, res) => {
        'Maria Santos', 28, 'Block 2 Lot 5', '09987654321',
        'Pedro Garcia', 42, 'Block 3 Lot 8', '09456789123']
     );
-    
+
     // Insert sample documents
     await db.query(
       'INSERT INTO documents (type, resident, date, status) VALUES ($1, $2, $3, $4), ($5, $6, $7, $8), ($9, $10, $11, $12) ON CONFLICT DO NOTHING',
@@ -568,7 +453,7 @@ app.post('/api/init-database', async (req, res) => {
        'Certificate of Residency', 'Maria Santos', '2024-01-20', 'Processing',
        'Business Permit', 'Pedro Garcia', '2024-01-25', 'Issued']
     );
-    
+
     // Insert sample officials
     await db.query(
       'INSERT INTO officials (name, position, contact) VALUES ($1, $2, $3), ($4, $5, $6), ($7, $8, $9) ON CONFLICT DO NOTHING',
@@ -576,7 +461,7 @@ app.post('/api/init-database', async (req, res) => {
        'Councilor Ana Reyes', 'Barangay Councilor', '09444555666',
        'Secretary Linda Torres', 'Barangay Secretary', '09777888999']
     );
-    
+
     // Insert sample events
     await db.query(
       'INSERT INTO events (title, date, time, location) VALUES ($1, $2, $3, $4), ($5, $6, $7, $8), ($9, $10, $11, $12) ON CONFLICT DO NOTHING',
@@ -584,7 +469,7 @@ app.post('/api/init-database', async (req, res) => {
        'Health and Wellness Seminar', '2024-02-20', '02:00 PM', 'Community Center',
        'Barangay Assembly Meeting', '2024-02-25', '07:00 PM', 'Barangay Hall']
     );
-    
+
     // Insert sample users
     await db.query(
       'INSERT INTO users (username, password, role) VALUES ($1, $2, $3), ($4, $5, $6), ($7, $8, $9) ON CONFLICT (username) DO NOTHING',
@@ -592,7 +477,7 @@ app.post('/api/init-database', async (req, res) => {
        'admin2', 'adminpass2', 'admin',
        'demo', 'demopass', 'user']
     );
-    
+
     res.json({ success: true, message: 'Database initialized with sample data' });
   } catch (error) {
     console.error('Database initialization error:', error);
@@ -600,7 +485,7 @@ app.post('/api/init-database', async (req, res) => {
   }
 });
 
-// Export all data
+// Export all data (supports both DB-backed and in-memory storage)
 app.get('/api/export', async (req, res) => {
   if (useDatabase) {
     try {
@@ -610,7 +495,7 @@ app.get('/api/export', async (req, res) => {
       const officials = await db.query('SELECT * FROM officials');
       const complaints = await db.query('SELECT * FROM complaints');
       const users = await db.query('SELECT * FROM users');
-      
+
       res.json({
         residents: residents.rows,
         documents: documents.rows,
@@ -624,6 +509,7 @@ app.get('/api/export', async (req, res) => {
       res.status(500).json({ error: error.message });
     }
   } else {
+    // Fallback to in-memory storage
     res.json(storage);
   }
 });
@@ -749,23 +635,23 @@ app.get('/health', async (req, res) => {
     if (useDatabase) {
       try {
         const connTest = await db.testConnection();
-        if (connTest.success) {
-          dbStatus = { 
+        if (connTest && connTest.success) {
+          dbStatus = {
             state: 'connected',
-            timestamp: connTest.timestamp,
+            timestamp: connTest.timestamp || null,
             details: null
           };
         } else {
           dbStatus = {
             state: 'error',
-            details: connTest.error
+            details: connTest ? connTest.error : 'Unknown connection error'
           };
         }
       } catch (dbErr) {
         console.error('Health DB check failed:', dbErr);
         dbStatus = {
           state: 'error',
-          details: dbErr.message
+          details: dbErr && dbErr.message ? dbErr.message : String(dbErr)
         };
       }
     }
@@ -774,7 +660,7 @@ app.get('/health', async (req, res) => {
     const dbConfig = {
       host: process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).hostname : null,
       database: process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).pathname.slice(1) : null,
-      ssl: true
+      ssl: !!process.env.DATABASE_URL
     };
 
     // Always return 200 with detailed status
@@ -828,7 +714,8 @@ process.on('SIGTERM', () => {
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
+  console.error('\n❌ Uncaught Exception:', error);
+  console.error('Stack:', error.stack);
   // Keep the process running but log the error
 });
 
@@ -836,4 +723,12 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
   // Keep the process running but log the error
+});
+
+// Log any process exit
+process.on('exit', (code) => {
+  console.error(`\n❌ Process exiting with code ${code}`);
+  if (code !== 0) {
+    console.error('Stack trace:', new Error().stack);
+  }
 });
