@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 
 // Try to load optional dependencies and provide safe fallbacks so the server can start
 let cors;
@@ -42,26 +43,27 @@ app.use(express.urlencoded({ extended: true }));
 // on a transient startup failure — handle errors per-request instead.
 const useDatabase = !!process.env.DATABASE_URL;
 if (!useDatabase) {
-  console.log('⚠️  No DATABASE_URL found. Running in in-memory storage mode.');
+  console.log('⚠️  No DATABASE_URL found. Running in-memory storage mode.');
 } else {
-  // Test DB connectivity and initialize tables
-  const fs = require('fs');
-  const path = require('path');
-  
   // Initialize database
   async function initDatabase() {
     let initSQL = '';
-    
+
     // Try to read SQL files, with fallback paths
     try {
       try {
         initSQL = fs.readFileSync(path.join(__dirname, 'db', 'init.sql'), 'utf8');
         console.log('✅ Found init.sql in db/ directory');
       } catch (sqlErr) {
-        initSQL = fs.readFileSync(path.join(__dirname, 'create_postgres_tables.sql'), 'utf8');
-        console.log('✅ Found create_postgres_tables.sql in root directory');
+        try {
+          initSQL = fs.readFileSync(path.join(__dirname, 'create_postgres_tables.sql'), 'utf8');
+          console.log('✅ Found create_postgres_tables.sql in root directory');
+        } catch (sqlErr2) {
+          // No init SQL found; continue with existing tables
+          console.warn('⚠️ No SQL init files found - will continue with existing tables');
+        }
       }
-      
+
       // Test connection first
       const connTest = await db.testConnection();
       if (!connTest.success) {
@@ -70,7 +72,7 @@ if (!useDatabase) {
       console.log('✅ Database connected successfully at:', connTest.timestamp);
 
       // Split and execute init SQL if we have any
-      if (initSQL.trim()) {
+      if (initSQL && initSQL.trim()) {
         const statements = initSQL.split(';').filter(stmt => stmt.trim());
         for (const stmt of statements) {
           if (stmt.trim()) {
