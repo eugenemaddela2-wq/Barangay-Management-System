@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barangay Management System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="css/index.css">
+</head>
+<body>
+    <!-- Login Button -->
+    <a class="login-button" href="login.html">
+        <i class="fa fa-sign-in-alt"></i>
+        <span>Login</span>
+    </a>
+    
+    <div class="title">
+        <h1>BARANGAY MANAGEMENT SYSTEM</h1>
+        <div id="loading-message" style="display: none; text-align: center; padding: 20px; color: #666;">
+            <p>If the system is taking time to load, please wait 30-60 seconds.</p>
+            <p>Our free tier server may need to wake up from sleep mode.</p>
+        </div>
+    </div>
+    
+    <script>
+        // Show loading message if page takes more than 3 seconds to fully load
+        setTimeout(() => {
+            if (document.readyState !== 'complete') {
+                document.getElementById('loading-message').style.display = 'block';
+            }
+        }, 3000);
+    </script>
+    
+    <div class="main-content">
+        <div class="welcome-section">
+            <h2>Welcome to Barangay Management System</h2>
+            <p>Manage your barangay efficiently with our comprehensive system</p>
+            <div class="quick-stats">
+                <div class="stat-card">
+                    <i class="fa fa-users"></i>
+                    <h3 id="residentsCount">0</h3>
+                    <p>Total Residents</p>
+                </div>
+                <div class="stat-card">
+                    <i class="fa fa-file-alt"></i>
+                    <h3 id="documentsCount">0</h3>
+                    <p>Documents Issued</p>
+                </div>
+                <div class="stat-card">
+                    <i class="fa fa-calendar-check"></i>
+                    <h3 id="eventsCount">0</h3>
+                    <p>Upcoming Events</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+    <script src="js/index.js"></script>
+</body>
+</html>

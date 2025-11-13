@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Home - Barangay Management System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/home.css">
+</head>
+<body>
+    <div class="bubbles">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+    
+    <div class="title">
+        <h1>BARANGAY MANAGEMENT SYSTEM</h1>
+    </div>
+    
+    <div class="container">
+        <a href="#" class="toggleBox">
+            <span class="icon"></span>
+        </a>
+        <ul class="navItems">
+            <li>
+                <a href="home.html">
+                    <i class="fa fa-home" style="--i:1"></i>
+                    <span style="--g:1">Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="profile.html">
+                    <i class="fa fa-user" style="--i:2"></i>
+                    <span style="--g:2">Profile</span>
+                </a>
+            </li>
+            <li>
+                <a href="documents.html">
+                    <i class="fa fa-folder" style="--i:3"></i>
+                    <span style="--g:3">Documents</span>
+                </a>
+            </li>
+            <li>
+                <a href="officials.html">
+                    <i class="fa fa-user-tie" style="--i:4"></i>
+                    <span style="--g:4">Officials</span>
+                </a>
+            </li>
+            <li>
+                <a href="events.html">
+                    <i class="fa fa-calendar" style="--i:5"></i>
+                    <span style="--g:5">Events</span>
+                </a>
+            </li>
+            <li>
+                <a href="residents.html">
+                    <i class="fa fa-users" style="--i:6"></i>
+                    <span style="--g:6">Residents</span>
+                </a>
+            </li>
+            <li>
+                <a href="complaints.html">
+                    <i class="fa fa-comment-alt" style="--i:7"></i>
+                    <span style="--g:7">Complaints</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" onclick="logout()">
+                    <i class="fa fa-sign-out" style="--i:8"></i>
+                    <span style="--g:8">LogOut</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <div class="page-container">
+        <div class="page-header">
+            <h1><i class="fa fa-home"></i> Dashboard</h1>
+            <p>Welcome to the Barangay Management System Dashboard</p>
+        </div>
+
+        <div class="quick-stats">
+            <div class="stat-card">
+                <i class="fa fa-users"></i>
+                <h3 id="residentsCount">0</h3>
+                <p>Total Residents</p>
+            </div>
+            <div class="stat-card">
+                <i class="fa fa-file-alt"></i>
+                <h3 id="documentsCount">0</h3>
+                <p>Documents Issued</p>
+            </div>
+            <div class="stat-card">
+                <i class="fa fa-calendar-check"></i>
+                <h3 id="eventsCount">0</h3>
+                <p>Upcoming Events</p>
+            </div>
+        </div>
+
+        <div class="content-card">
+            <h2><i class="fa fa-chart-line"></i> Recent Activities</h2>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Activity</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recentActivities">
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: #f0f0f0; font-style: italic;">
+                                No recent activities to display.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="content-card">
+            <h2><i class="fa fa-bullhorn"></i> Announcements</h2>
+            <div class="announcement-item">
+                <h3></h3>
+                <p style="color: #f0f0f0; font-style: italic;">No announcements at this time.</p>
+                <small><i class="fa fa-calendar"></i> </small>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+    <script src="js/home.js"></script>
+   
+</body>
+</html>

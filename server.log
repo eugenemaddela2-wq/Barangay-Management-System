@@ -1,9 +1,0 @@
-[dotenv@17.2.3] injecting env (2) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
-
-🚀 Barangay Management System running on http://localhost:5000
-📡 API endpoints available at /api/*
-
-💾 Using PostgreSQL database for data storage
-✅ Database connected successfully at: 2025-11-04T14:03:44.145Z
-✅ Database tables verified/created
-🔄 Database initialization complete

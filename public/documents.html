@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documents - Barangay Management System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/documents.css">
+</head>
+<body>
+    <div class="bubbles">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+    
+    <div class="title">
+        <h1>BARANGAY MANAGEMENT SYSTEM</h1>
+    </div>
+    
+    <div class="container">
+        <a href="#" class="toggleBox">
+            <span class="icon"></span>
+        </a>
+        <ul class="navItems">
+            <li>
+                <a href="home.html">
+                    <i class="fa fa-home" style="--i:1"></i>
+                    <span style="--g:1">Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="profile.html">
+                    <i class="fa fa-user" style="--i:2"></i>
+                    <span style="--g:2">Profile</span>
+                </a>
+            </li>
+            <li>
+                <a href="documents.html">
+                    <i class="fa fa-folder" style="--i:3"></i>
+                    <span style="--g:3">Documents</span>
+                </a>
+            </li>
+            <li>
+                <a href="officials.html">
+                    <i class="fa fa-user-tie" style="--i:4"></i>
+                    <span style="--g:4">Officials</span>
+                </a>
+            </li>
+            <li>
+                <a href="events.html">
+                    <i class="fa fa-calendar" style="--i:5"></i>
+                    <span style="--g:5">Events</span>
+                </a>
+            </li>
+            <li>
+                <a href="residents.html">
+                    <i class="fa fa-users" style="--i:6"></i>
+                    <span style="--g:6">Residents</span>
+                </a>
+            </li>
+            <li>
+                <a href="complaints.html">
+                    <i class="fa fa-comment-alt" style="--i:7"></i>
+                    <span style="--g:7">Complaints</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" onclick="logout()">
+                    <i class="fa fa-sign-out" style="--i:8"></i>
+                    <span style="--g:8">LogOut</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <div class="page-container">
+        <div class="page-header">
+            <h1><i class="fa fa-folder"></i> Document Management</h1>
+            <p>Manage barangay documents and certificates</p>
+        </div>
+
+        <div class="content-card">
+            <h2><i class="fa fa-file-plus"></i> Request New Document</h2>
+            <form id="documentForm">
+                <div class="form-group">
+                    <label for="documentType">Document Type</label>
+                    <select id="documentType" name="type" required>
+                        <option value="">Select Document Type</option>
+                        <option value="Barangay Clearance">Barangay Clearance</option>
+                        <option value="Certificate of Residency">Certificate of Residency</option>
+                        <option value="Business Permit">Business Permit</option>
+                        <option value="Certificate of Indigency">Certificate of Indigency</option>
+                        <option value="Barangay ID">Barangay ID</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="purpose">Purpose</label>
+                    <input type="text" id="purpose" name="purpose" placeholder="Enter purpose of document" required>
+                </div>
+                <button type="submit" class="btn">
+                    <i class="fa fa-paper-plane"></i> Submit Request
+                </button>
+            </form>
+        </div>
+
+        <div class="content-card">
+            <h2><i class="fa fa-file-alt"></i> My Document Requests</h2>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Request ID</th>
+                            <th>Document Type</th>
+                            <th>Purpose</th>
+                            <th>Request Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="documentsTable">
+                        <!-- Documents will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+    <script src="js/documents.js"></script>
+    
+</body>
+</html>

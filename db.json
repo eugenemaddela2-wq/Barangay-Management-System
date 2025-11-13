@@ -1,0 +1,35 @@
+{
+  "users": [
+    {
+      "user_id": 1,
+      "username": "admin1",
+      "password": "$2a$10$OxBKYbrrDjYqEp/Kn9QjCe2zd5lu45BK6egoso/MOlI5/WS7.96Ee",
+      "role": "admin"
+    },
+    {
+      "user_id": 2,
+      "username": "user1",
+      "password": "$2a$10$Hgu/raLHjWYEQdheK2xCNu1aKTK0AhcLiiVSDRm6PExzGLm4ZURBa",
+      "role": "resident"
+    },
+    {
+      "user_id": 3,
+      "username": "official1",
+      "password": "$2a$10$L1PZKbrBC1Kn9C2UN6sq9O5Z5we4ZoILvLtF9IjXW4qHqeqSOOyYG",
+      "role": "official"
+    }
+  ],
+  "residents": [],
+  "documents": [],
+  "events": [],
+  "officials": [],
+  "complaints": [],
+  "counters": {
+    "user_id": 4,
+    "resident_id": 1,
+    "documents_id": 1,
+    "events_id": 1,
+    "official_id": 1,
+    "complaints_id": 1
+  }
+}
