@@ -12,7 +12,7 @@ services:
           name: bms_db
           property: connectionString
       - key: JWT_SECRET
-        value: "REPLACE_WITH_A_STRONG_SECRET"
+        value: "ahfW8NZg544KKubCXtheCPsIxjE97s06UjlAtIYlyiPT31b0m2"
         fromService: false
     # Recommended: set DATABASE_URL and JWT_SECRET in Render dashboard as environment variables/secrets.
     plan: "free"

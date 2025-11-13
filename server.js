@@ -11,7 +11,7 @@ app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'replace-with-a-strong-secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'ahfW8NZg544KKubCXtheCPsIxjE97s06UjlAtIYlyiPT31b0m2';
 
 const connectionString = process.env.DATABASE_URL || '';
 if (!connectionString) {
