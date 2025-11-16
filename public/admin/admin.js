@@ -102,6 +102,7 @@
       </div>
       <div class="content-card">
         <h2>Officials List</h2>
+        <button class="btn" onclick="cleanupDuplicateOfficials()" style="margin-bottom:10px;background:#f39c12;">🧹 Remove Duplicates</button>
         <div class="table-container"><table class="data-table"><thead><tr><th>Name</th><th>Position</th><th>Contact</th><th>Actions</th></tr></thead><tbody id="officialsTableAdmin"></tbody></table></div>
       </div>
     `;
@@ -207,7 +208,43 @@
   }
   window.importAll = importAll;
 
-  function adminLogout(){ BMS.logout(); window.location.href = '/login.html'; }
+  window.adminLogout = function(){ BMS.logout(); window.location.href = '/login.html'; };
+
+  window.cleanupDuplicateOfficials = async function() {
+    if (!confirm('This will keep only the first entry for each name and delete duplicates. Continue?')) return;
+    try {
+      const officials = await BMS.getOfficials();
+      const seen = new Map();
+      const toDelete = [];
+      
+      officials.forEach(o => {
+        const key = (o.name || '').toLowerCase().trim();
+        if (!seen.has(key)) {
+          seen.set(key, o.official_id);
+        } else {
+          toDelete.push(o.official_id);
+        }
+      });
+      
+      if (toDelete.length === 0) {
+        alert('No duplicates found!');
+        return;
+      }
+      
+      let deleted = 0;
+      for (const id of toDelete) {
+        try {
+          await BMS.apiFetch(`/api/officials/${id}`, 'DELETE');
+          deleted++;
+        } catch (e) {
+          console.error('Failed to delete official', id, e);
+        }
+      }
+      
+      alert(`Deleted ${deleted} duplicate official(s)`);
+      reloadList(BMS.getOfficials, 'officialsTableAdmin', renderRowForOfficial);
+    } catch (err) { alert('Cleanup failed: ' + (err.error || err.message)); }
+  };
 
   window.cleanupDuplicateResidents = async function() {
     if (!confirm('This will keep only the first entry for each name and delete duplicates. Continue?')) return;

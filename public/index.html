@@ -9,11 +9,17 @@
         <link rel="stylesheet" href="css/index.css">
 </head>
 <body>
-    <!-- Login Button -->
-    <a class="login-button" href="login.html">
-        <i class="fa fa-sign-in-alt"></i>
-        <span>Login</span>
-    </a>
+    <!-- Login/Logout Button -->
+    <div id="authButtons" style="display: flex; gap: 10px;">
+        <a id="loginBtn" class="login-button" href="login.html" style="display: none;">
+            <i class="fa fa-sign-in-alt"></i>
+            <span>Login</span>
+        </a>
+        <button id="logoutBtn" class="login-button" onclick="logoutFromHome()" style="display: none; background: #ff3b3b; border: none; cursor: pointer;">
+            <i class="fa fa-sign-out-alt"></i>
+            <span>Logout</span>
+        </button>
+    </div>
     
     <div class="title">
         <h1>BARANGAY MANAGEMENT SYSTEM</h1>

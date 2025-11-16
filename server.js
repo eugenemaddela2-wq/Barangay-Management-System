@@ -173,6 +173,24 @@ async function initializeDatabase() {
       console.log('Note: Duplicate cleanup skipped (may not be needed)');
     }
 
+    // Clean up duplicate officials (keep only the first occurrence)
+    try {
+      const dupCheckOff = await client.query(`
+        SELECT official_id, name, ROW_NUMBER() OVER (PARTITION BY LOWER(TRIM(name)) ORDER BY official_id) as rn 
+        FROM officials
+      `);
+      const toDeleteOff = dupCheckOff.rows.filter(row => row.rn > 1).map(row => row.official_id);
+      
+      if (toDeleteOff.length > 0) {
+        for (const id of toDeleteOff) {
+          await client.query('DELETE FROM officials WHERE official_id = $1', [id]);
+        }
+        console.log(`✓ Cleaned up ${toDeleteOff.length} duplicate official(s)`);
+      }
+    } catch (err) {
+      console.log('Note: Official duplicate cleanup skipped (may not be needed)');
+    }
+
   } catch (err) {
     console.error('ERROR during database initialization:', err.message);
     process.exit(1);
