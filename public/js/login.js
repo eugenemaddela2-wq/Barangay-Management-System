@@ -6,9 +6,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const toLoginLink = document.getElementById('toLoginLink');
   const cancelRegisterBtn = document.getElementById('cancelRegisterBtn');
 
-  if (toRegisterLink) toRegisterLink.addEventListener('click', (e) => { e.preventDefault(); if (registerCard) registerCard.style.display = 'block'; });
-  if (toLoginLink) toLoginLink.addEventListener('click', (e) => { e.preventDefault(); if (registerCard) registerCard.style.display = 'none'; });
-  if (cancelRegisterBtn) cancelRegisterBtn.addEventListener('click', () => { if (registerCard) registerCard.style.display = 'none'; });
+  if (toRegisterLink) toRegisterLink.addEventListener('click', (e) => { 
+    e.preventDefault(); 
+    if (loginForm) loginForm.style.display = 'none'; 
+    if (registerCard) registerCard.style.display = 'block'; 
+  });
+  if (toLoginLink) toLoginLink.addEventListener('click', (e) => { 
+    e.preventDefault(); 
+    if (loginForm) loginForm.style.display = 'block'; 
+    if (registerCard) registerCard.style.display = 'none'; 
+  });
+  if (cancelRegisterBtn) cancelRegisterBtn.addEventListener('click', () => { 
+    if (loginForm) loginForm.style.display = 'block'; 
+    if (registerCard) registerCard.style.display = 'none'; 
+  });
 
   if (loginForm) {
     bindForm('loginForm', async (data) => {
