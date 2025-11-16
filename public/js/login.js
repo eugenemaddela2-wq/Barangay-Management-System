@@ -42,15 +42,28 @@ document.addEventListener('DOMContentLoaded', () => {
     bindForm('registerForm', async (data, form) => {
       const username = data.reg_username && data.reg_username.trim();
       const password = data.reg_password;
+      const fullName = data.reg_name && data.reg_name.trim();
+      const age = data.reg_age;
+      const address = data.reg_address;
+      const contactNumber = data.reg_contact;
       if (!username || !password) return alert('Username and password are required');
       if (password.length < 6) return alert('Password must be at least 6 characters');
       try {
-        await BMS.register(username, password, 'resident');
-        alert('Registration successful. You are now logged in.');
-        location.href = '/home.html';
+        const payload = { username, password, role: 'resident', full_name: fullName, firstName: fullName, age, address, contactNumber };
+        const res = await BMS.register(payload);
+        // show a pending card/message
+        if (registerCard) registerCard.style.display = 'none';
+        if (loginForm) loginForm.style.display = 'block';
+        const pending = document.createElement('div');
+        pending.className = 'content-card';
+        pending.innerHTML = `<h2>Registration Pending</h2><p>Thanks ${escapeHtml(fullName||username)} — your registration has been submitted and is pending admin approval. You will be notified when your account is activated.</p>`;
+        document.querySelector('.login-container').appendChild(pending);
+        form.reset();
       } catch (err) {
         alert(err.error || 'Registration failed');
       }
     });
   }
 });
+
+function escapeHtml(s) { return String(s||'').replace(/[&<>\"]/g, (c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }

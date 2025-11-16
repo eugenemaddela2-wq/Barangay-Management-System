@@ -35,4 +35,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function escapeHtml(s) { return String(s || '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
   loadResidents();
+  // Realtime updates
+  if (window.BMS && window.BMS.connectStream) {
+    try {
+      window.BMS.connectStream((msg) => {
+        if (!msg || !msg.type) return;
+        if (msg.type.startsWith('resident')) loadResidents();
+      });
+    } catch (e) { console.warn('Could not connect SSE for residents', e); }
+  }
 });

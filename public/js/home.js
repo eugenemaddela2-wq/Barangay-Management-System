@@ -33,4 +33,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   loadCounts();
+
+  // Realtime updates
+  if (window.BMS && window.BMS.connectStream) {
+    try {
+      window.BMS.connectStream((msg) => {
+        if (!msg || !msg.type) return;
+        if (msg.type.startsWith('resident') || msg.type.startsWith('document') || msg.type.startsWith('event')) {
+          loadCounts();
+        }
+      });
+    } catch (e) { console.warn('Could not connect SSE for counts', e); }
+  }
 });

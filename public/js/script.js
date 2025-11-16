@@ -71,10 +71,10 @@ async function apiFetch(path, method = 'GET', body = null) {
 }
 
 // Auth
-async function register(username, password, role = 'resident') {
-  const data = await apiFetch('/api/auth/register', 'POST', { username, password, role });
-  setToken(data.token);
-  localStorage.setItem('bms_user', JSON.stringify(data.user));
+async function register(payload) {
+  // payload expected to include username, password, and optional profile fields
+  const data = await apiFetch('/api/auth/register', 'POST', payload);
+  // registration does not auto-login; server returns pending message and user
   return data;
 }
 
@@ -85,7 +85,19 @@ async function login(username, password) {
   return data;
 }
 
-function logout() {
+async function logout() {
+  const token = getToken();
+  if (token) {
+    try {
+      await fetch(API_BASE + '/api/auth/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+      });
+    } catch (e) {
+      // ignore network errors - still clear client state
+      console.warn('Logout request failed', e);
+    }
+  }
   localStorage.removeItem('bms_token');
   localStorage.removeItem('bms_user');
 }
@@ -125,12 +137,33 @@ async function createDocument(payload) { return apiFetch('/api/documents', 'POST
 async function updateDocument(id, payload) { return apiFetch(`/api/documents/${id}`, 'PUT', payload); }
 async function deleteDocument(id) { return apiFetch(`/api/documents/${id}`, 'DELETE'); }
 
+// Real-time stream (SSE)
+function connectStream(onMessage) {
+  try {
+    const es = new EventSource(API_BASE + '/api/stream');
+    es.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (onMessage) onMessage(msg);
+      } catch (err) { console.error('Invalid stream message', err); }
+    };
+    es.onerror = (e) => { /* keep open, browser handles reconnect */ };
+    return es;
+  } catch (e) {
+    console.warn('SSE not available', e);
+    return null;
+  }
+}
+
 // Simple helpers for pages to call
 window.BMS = {
   // auth
   register, login, logout, currentUser,
   // token helpers
   jwtDecode, isTokenExpired,
+  // profile
+  getProfile: async function() { return apiFetch('/api/me'); },
+  updateProfile: async function(payload) { return apiFetch('/api/me', 'PUT', payload); },
   // residents
   getResidents, getResident, createResident, updateResident, deleteResident,
   // officials
@@ -144,6 +177,8 @@ window.BMS = {
   // helper
   apiFetch
 };
+// attach stream helper
+window.BMS.connectStream = connectStream;
 
 // DOM convenience: basic form submit binding by id
 function bindForm(id, handler) {

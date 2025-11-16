@@ -10,10 +10,13 @@
     return u;
   }
 
+  let currentSection = 'residents';
+
   function showSection(name) {
     requireAdmin();
     const container = document.getElementById('adminSections');
     container.innerHTML = '';
+    currentSection = name;
     if (name === 'residents') return renderResidents(container);
     if (name === 'officials') return renderOfficials(container);
     if (name === 'events') return renderEvents(container);
@@ -113,9 +116,26 @@
 
   function renderRowForOfficial(o) {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${escapeHtml(o.name)}</td><td>${escapeHtml(o.position||'')}</td><td>${escapeHtml(o.contact||'')}</td><td><button class="btn" onclick="adminDeleteOfficial(${o.official_id})">Delete</button></td>`;
+    tr.innerHTML = `<td>${escapeHtml(o.name)}</td><td>${escapeHtml(o.position||'')}</td><td>${escapeHtml(o.contact||'')}</td><td><button class="btn" onclick="adminEditOfficial(${o.official_id})">Edit</button> <button class="btn" onclick="adminDeleteOfficial(${o.official_id})">Delete</button></td>`;
     return tr;
   }
+  
+  window.adminEditOfficial = async function(id) {
+    try {
+      requireAdmin();
+      const data = await BMS.getOfficials().then(list => list.find(x => x.official_id == id));
+      if (!data) return alert('Official not found');
+      const name = prompt('Name', data.name);
+      if (name == null) return;
+      const position = prompt('Position', data.position||'');
+      if (position == null) return;
+      const contact = prompt('Contact', data.contact||'');
+      if (contact == null) return;
+      await BMS.updateOfficial(id, { name, position, contact });
+      alert('Updated');
+      reloadList(BMS.getOfficials, 'officialsTableAdmin', renderRowForOfficial);
+    } catch (err) { console.error(err); alert(err.error || 'Update failed'); }
+  };
   window.adminDeleteOfficial = async function(id) { if (!confirm('Delete official?')) return; try { await BMS.apiFetch(`/api/officials/${id}`, 'DELETE'); alert('Deleted'); reloadList(BMS.getOfficials, 'officialsTableAdmin', renderRowForOfficial); } catch (err) { alert(err.error || 'Delete failed'); } };
 
   function renderEvents(container) {
@@ -140,8 +160,23 @@
     reloadList(BMS.getEvents, 'eventsTableAdmin', renderRowForEvent);
   }
 
-  function renderRowForEvent(ev) { const tr = document.createElement('tr'); tr.innerHTML = `<td>${escapeHtml(ev.title)}</td><td>${ev.date||''}</td><td>${ev.time||''}</td><td>${escapeHtml(ev.location||'')}</td><td><button class="btn" onclick="adminDeleteEvent(${ev.event_id})">Delete</button></td>`; return tr; }
+  function renderRowForEvent(ev) { const tr = document.createElement('tr'); tr.innerHTML = `<td>${escapeHtml(ev.title)}</td><td>${ev.date||''}</td><td>${ev.time||''}</td><td>${escapeHtml(ev.location||'')}</td><td><button class="btn" onclick="adminEditEvent(${ev.event_id})">Edit</button> <button class="btn" onclick="adminDeleteEvent(${ev.event_id})">Delete</button></td>`; return tr; }
   window.adminDeleteEvent = async function(id){ if(!confirm('Delete event?')) return; try{ await BMS.apiFetch(`/api/events/${id}`,'DELETE'); alert('Deleted'); reloadList(BMS.getEvents,'eventsTableAdmin',renderRowForEvent);}catch(err){alert(err.error||'Delete failed');}};
+
+  window.adminEditEvent = async function(id){
+    try{
+      requireAdmin();
+      const ev = (await BMS.getEvents()).find(x=>x.event_id==id);
+      if(!ev) return alert('Event not found');
+      const title = prompt('Title', ev.title); if(title==null) return;
+      const date = prompt('Date (YYYY-MM-DD)', ev.date||''); if(date==null) return;
+      const time = prompt('Time (HH:MM)', ev.time||''); if(time==null) return;
+      const location = prompt('Location', ev.location||''); if(location==null) return;
+      await BMS.updateEvent(id, { title, date, time, location });
+      alert('Updated');
+      reloadList(BMS.getEvents,'eventsTableAdmin',renderRowForEvent);
+    }catch(err){ console.error(err); alert(err.error||'Update failed'); }
+  };
 
   function renderComplaints(container) {
     container.innerHTML = `
@@ -152,8 +187,20 @@
     `;
     reloadList(BMS.getComplaints, 'complaintsTableAdmin', renderRowForComplaint);
   }
-  function renderRowForComplaint(c){ const tr = document.createElement('tr'); tr.innerHTML = `<td>${escapeHtml(c.title)}</td><td>${escapeHtml(c.details)}</td><td>${c.date||''}</td><td><button class="btn" onclick="adminDeleteComplaint(${c.complaint_id})">Delete</button></td>`; return tr; }
+  function renderRowForComplaint(c){ const tr = document.createElement('tr'); tr.innerHTML = `<td>${escapeHtml(c.title)}</td><td>${escapeHtml(c.details)}</td><td>${c.date||''}</td><td><button class="btn" onclick="adminChangeComplaintStatus(${c.complaint_id})">Change Status</button> <button class="btn" onclick="adminDeleteComplaint(${c.complaint_id})">Delete</button></td>`; return tr; }
   window.adminDeleteComplaint = async function(id){ if(!confirm('Delete complaint?')) return; try{ await BMS.apiFetch(`/api/complaints/${id}`,'DELETE'); alert('Deleted'); reloadList(BMS.getComplaints,'complaintsTableAdmin',renderRowForComplaint);}catch(err){alert(err.error||'Delete failed');}};
+
+  window.adminChangeComplaintStatus = async function(id){
+    try{
+      requireAdmin();
+      const c = (await BMS.getComplaints()).find(x=>x.complaint_id==id);
+      if(!c) return alert('Complaint not found');
+      const status = prompt('Status (Pending/Resolved)', c.status||'Pending'); if(status==null) return;
+      await BMS.updateComplaint(id, { title: c.title, details: c.details, status });
+      alert('Status updated');
+      reloadList(BMS.getComplaints,'complaintsTableAdmin',renderRowForComplaint);
+    }catch(err){ console.error(err); alert(err.error||'Status change failed'); }
+  };
 
   function renderDocuments(container){ container.innerHTML = `
     <div class="content-card">
@@ -162,29 +209,158 @@
     </div>`;
     reloadList(BMS.getDocuments,'documentsTableAdmin',renderRowForDocument);
   }
-  function renderRowForDocument(d){ const tr=document.createElement('tr'); tr.innerHTML=`<td>${d.document_id}</td><td>${escapeHtml(d.type)}</td><td>${d.resident||''}</td><td>${d.date||''}</td><td>${escapeHtml(d.status||'')}</td><td><button class="btn" onclick="adminDeleteDocument(${d.document_id})">Delete</button></td>`; return tr; }
+  function renderRowForDocument(d){
+    const tr=document.createElement('tr');
+    const status = String(d.status||'').toLowerCase();
+    const actions = [];
+    if (status === 'issued') {
+      actions.push(`<button class="btn" onclick="adminPrintDocument(${d.document_id})">Print</button>`);
+    } else {
+      actions.push(`<button class="btn" onclick="adminApproveDocument(${d.document_id})">Approve</button>`);
+      actions.push(`<button class="btn" onclick="adminEditDocument(${d.document_id})">Edit</button>`);
+    }
+    actions.push(`<button class="btn" onclick="adminDeleteDocument(${d.document_id})">Delete</button>`);
+    tr.innerHTML = `<td>${d.document_id}</td><td>${escapeHtml(d.type)}</td><td>${d.resident||''}</td><td>${d.date||''}</td><td>${escapeHtml(d.status||'')}</td><td>${actions.join(' ')}</td>`;
+    return tr;
+  }
   window.adminDeleteDocument = async function(id){ if(!confirm('Delete document?')) return; try{ await BMS.apiFetch(`/api/documents/${id}`,'DELETE'); alert('Deleted'); reloadList(BMS.getDocuments,'documentsTableAdmin',renderRowForDocument);}catch(err){alert(err.error||'Delete failed');}};
 
-  function renderUsers(container){ container.innerHTML = `
-    <div class="content-card">
-      <h2>Manage Users</h2>
-      <form id="adminUserForm">
-        <div class="form-group"><label>Username</label><input name="username" required></div>
-        <div class="form-group"><label>Password</label><input name="password" type="password" required></div>
-        <div class="form-group"><label>Role</label><select name="role"><option value="resident">resident</option><option value="official">official</option><option value="admin">admin</option></select></div>
-        <button class="btn" type="submit">Create User</button>
-      </form>
-    </div>
-    <div class="content-card">
-      <h2>Users List</h2>
-      <div class="table-container"><table class="data-table"><thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Actions</th></tr></thead><tbody id="usersTable"></tbody></table></div>
-    </div>`;
+  window.adminEditDocument = async function(id){
+    try{
+      requireAdmin();
+      const d = (await BMS.getDocuments()).find(x=>x.document_id==id);
+      if(!d) return alert('Document not found');
+      const status = prompt('Status (Processing/Completed)', d.status||'Processing'); if(status==null) return;
+      await BMS.updateDocument(id, { type: d.type, resident: d.resident_id || d.resident, date: d.date, status });
+      alert('Updated');
+      reloadList(BMS.getDocuments,'documentsTableAdmin',renderRowForDocument);
+    }catch(err){ console.error(err); alert(err.error||'Update failed'); }
+  };
+
+  window.adminApproveDocument = async function(id) {
+    try {
+      requireAdmin();
+      await BMS.updateDocument(id, { status: 'Issued' });
+      alert('Document approved and issued');
+      reloadList(BMS.getDocuments,'documentsTableAdmin',renderRowForDocument);
+    } catch (err) { console.error(err); alert(err.error || 'Approve failed'); }
+  };
+
+  window.adminPrintDocument = function(id) {
+    // open a printable window with basic document info
+    (async () => {
+      try {
+        const docs = await BMS.getDocuments();
+        const d = (docs||[]).find(x=>x.document_id==id);
+        if (!d) return alert('Document not found');
+        const w = window.open('', '_blank');
+        const html = `<!doctype html><html><head><title>Document ${d.document_id}</title><style>body{font-family:Arial,sans-serif;padding:20px}h1{font-size:20px}table{width:100%;border-collapse:collapse}td{padding:6px;border:1px solid #ccc}</style></head><body><h1>Barangay Document - ${escapeHtml(d.type)}</h1><table><tr><td><strong>ID</strong></td><td>${d.document_id}</td></tr><tr><td><strong>Type</strong></td><td>${escapeHtml(d.type)}</td></tr><tr><td><strong>Resident</strong></td><td>${d.resident||''}</td></tr><tr><td><strong>Date</strong></td><td>${d.date||''}</td></tr><tr><td><strong>Status</strong></td><td>${d.status||''}</td></tr></table><p style="margin-top:20px">Signature: ________________________</p><script>window.onload=function(){window.print();}</script></body></html>`;
+        w.document.write(html);
+        w.document.close();
+      } catch (err) { console.error(err); alert('Could not open print view'); }
+    })();
+  };
+
+  function renderUsers(container) {
+    container.innerHTML = `
+      <div class="content-card">
+        <h2>Manage Users</h2>
+        <form id="adminUserForm">
+          <div class="form-group"><label>Full Name</label><input name="full_name" required></div>
+          <div class="form-group"><label>Username</label><input name="username" required></div>
+          <div class="form-group"><label>Password</label><input name="password" type="password" required></div>
+          <div class="form-group"><label>Role</label><select name="role"><option value="resident">resident</option><option value="official">official</option><option value="admin">admin</option></select></div>
+          <button class="btn" type="submit">Create User</button>
+        </form>
+      </div>
+      <div class="content-card">
+        <h2>Users List</h2>
+        <div class="table-container"><table class="data-table"><thead><tr><th>ID</th><th>Full Name</th><th>Username</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead><tbody id="usersTable"></tbody></table></div>
+      </div>
+    `;
+
     const form = document.getElementById('adminUserForm');
-    form.addEventListener('submit', async (e)=>{ e.preventDefault(); const fd=new FormData(form); try{ await BMS.apiFetch('/api/users','POST',{ username: fd.get('username'), password: fd.get('password'), role: fd.get('role')}); alert('User created'); form.reset(); reloadList(()=>BMS.apiFetch('/api/users'),'usersTable',renderRowForUser);}catch(err){alert(err.error||'Create user failed');}});
-    reloadList(()=>BMS.apiFetch('/api/users'),'usersTable',renderRowForUser);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      try {
+        await BMS.apiFetch('/api/users', 'POST', { username: fd.get('username'), password: fd.get('password'), full_name: fd.get('full_name'), role: fd.get('role') });
+        alert('User created');
+        form.reset();
+        reloadList(() => BMS.apiFetch('/api/users'), 'usersTable', renderRowForUser);
+      } catch (err) { alert(err.error || 'Create user failed'); }
+    });
+
+    reloadList(() => BMS.apiFetch('/api/users'), 'usersTable', renderRowForUser);
   }
-  function renderRowForUser(u){ const tr=document.createElement('tr'); tr.innerHTML=`<td>${u.user_id}</td><td>${escapeHtml(u.username)}</td><td>${escapeHtml(u.role)}</td><td><button class="btn" onclick="adminDeleteUser(${u.user_id})">Delete</button></td>`; return tr; }
-  window.adminDeleteUser = async function(id){ if(!confirm('Delete user?')) return; try{ await BMS.apiFetch(`/api/users/${id}`,'DELETE'); alert('Deleted'); reloadList(()=>BMS.apiFetch('/api/users'),'usersTable',renderRowForUser);}catch(err){alert(err.error||'Delete failed');}};
+
+  function renderRowForUser(u) {
+    const tr = document.createElement('tr');
+    const statusText = u.approved ? 'Approved' : 'Pending';
+    const statusColor = u.approved ? '#27ae60' : '#f39c12';
+    tr.innerHTML = `
+      <td>${u.user_id}</td>
+      <td>${escapeHtml(u.full_name || '')}</td>
+      <td>${escapeHtml(u.username)}</td>
+      <td>
+        <select class="role-select" data-id="${u.user_id}" onchange="adminChangeUserRole(${u.user_id}, this.value)">
+          <option value="resident" ${u.role === 'resident' ? 'selected' : ''}>resident</option>
+          <option value="official" ${u.role === 'official' ? 'selected' : ''}>official</option>
+          <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>admin</option>
+        </select>
+      </td>
+      <td><span style="color:${statusColor};font-weight:bold;">${statusText}</span></td>
+      <td>
+        <button class="btn" onclick="adminApproveUser(${u.user_id}, ${u.approved ? 'false' : 'true'})" style="margin-right:6px;">${u.approved ? 'Revoke' : 'Approve'}</button>
+        <button class="btn" onclick="adminEditUser(${u.user_id})" style="margin-right:6px;">Edit</button>
+        <button class="btn" onclick="adminDeleteUser(${u.user_id})">Delete</button>
+      </td>
+    `;
+    return tr;
+  }
+
+  window.adminChangeUserRole = async function(id, newRole) {
+    try {
+      await BMS.apiFetch(`/api/users/${id}`, 'PUT', { role: newRole });
+      alert('Role updated');
+      reloadList(() => BMS.apiFetch('/api/users'), 'usersTable', renderRowForUser);
+    } catch (err) { alert(err.error || 'Role change failed'); }
+  };
+
+  window.adminApproveUser = async function(id, approve) {
+    try {
+      await BMS.apiFetch(`/api/users/${id}`, 'PUT', { approved: approve });
+      alert(approve ? 'User approved' : 'User approval revoked');
+      reloadList(() => BMS.apiFetch('/api/users'), 'usersTable', renderRowForUser);
+    } catch (err) { alert(err.error || 'Approval change failed'); }
+  };
+
+  window.adminEditUser = async function(id) {
+    try {
+      requireAdmin();
+      const data = await BMS.apiFetch(`/api/users/${id}`);
+      const fullName = prompt('Full Name', data.full_name || '');
+      if (fullName == null) return;
+      const username = prompt('Username', data.username || '');
+      if (username == null) return;
+      const changePassword = confirm('Do you want to set a new password for this user?');
+      let password = undefined;
+      if (changePassword) {
+        password = prompt('New password (min 6 chars)');
+        if (password == null) return; // cancelled
+        if (password.length > 0 && password.length < 6) return alert('Password must be at least 6 characters');
+      }
+      try {
+        const payload = { full_name: fullName, username };
+        if (password !== undefined && password.length > 0) payload.password = password;
+        await BMS.apiFetch(`/api/users/${id}`, 'PUT', payload);
+        alert('User updated');
+        reloadList(() => BMS.apiFetch('/api/users'), 'usersTable', renderRowForUser);
+      } catch (err) { alert(err.error || 'Update failed'); }
+    } catch (err) { console.error('Edit user error:', err); alert('Edit failed: ' + (err.message || err.error)); }
+  };
+
+  window.adminDeleteUser = async function(id) { if (!confirm('Delete user?')) return; try { await BMS.apiFetch(`/api/users/${id}`, 'DELETE'); alert('Deleted'); reloadList(() => BMS.apiFetch('/api/users'), 'usersTable', renderRowForUser); } catch (err) { alert(err.error || 'Delete failed'); } };
 
   function exportAll(){ requireAdmin(); (async ()=>{
     const out = {};
@@ -289,6 +465,25 @@
     try{ requireAdmin(); }catch(e){ return; }
     // default show residents
     showSection('residents');
+
+    // subscribe to server-sent events to keep admin UI realtime
+    if (window.BMS && window.BMS.connectStream) {
+      try {
+        const es = window.BMS.connectStream((msg) => {
+          if (!msg || !msg.type) return;
+          // reload relevant tables based on event type when visible
+          const t = msg.type;
+          try {
+            if (t.startsWith('resident') && currentSection === 'residents') reloadList(BMS.getResidents, 'residentsTable', renderRowForResident);
+            if (t.startsWith('official') && currentSection === 'officials') reloadList(BMS.getOfficials, 'officialsTableAdmin', renderRowForOfficial);
+            if (t.startsWith('event') && currentSection === 'events') reloadList(BMS.getEvents, 'eventsTableAdmin', renderRowForEvent);
+            if (t.startsWith('complaint') && currentSection === 'complaints') reloadList(BMS.getComplaints, 'complaintsTableAdmin', renderRowForComplaint);
+            if (t.startsWith('document') && currentSection === 'documents') reloadList(BMS.getDocuments, 'documentsTableAdmin', renderRowForDocument);
+            if (t.startsWith('user') && currentSection === 'users') reloadList(() => BMS.apiFetch('/api/users'), 'usersTable', renderRowForUser);
+          } catch (e) { console.error('Error handling stream event', e); }
+        });
+      } catch (e) { console.warn('Could not connect SSE', e); }
+    }
   });
 
   // expose showSection for button onclick
