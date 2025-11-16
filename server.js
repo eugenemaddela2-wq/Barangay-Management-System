@@ -35,6 +35,14 @@ async function initializeDatabase() {
   try {
     console.log('✓ Connected to CockroachDB');
     
+    // Ensure `users` table has the columns expected by the app
+    try {
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(255)`);
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS approved BOOLEAN DEFAULT true`);
+    } catch (e) {
+      // ignore if users table does not yet exist; other initialization will create it
+    }
+    
     // Create officials table
     await client.query(`
       CREATE TABLE IF NOT EXISTS officials (
