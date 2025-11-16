@@ -1,6 +1,9 @@
 -- ============================
 --  BARANGAY MANAGEMENT SYSTEM DATABASE (PostgreSQL)
 -- ============================
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- then run the init SQL which uses crypt(gen_salt('bf'), 'password') as appropriate
+
 DO $$ 
     BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
