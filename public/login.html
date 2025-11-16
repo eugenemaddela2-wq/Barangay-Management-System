@@ -45,13 +45,13 @@
                 <h2>Register</h2>
                 <form id="registerForm">
                     <div class="form-group">
-                        <label for="reg_username" placeholder="Enter your username">Username</label><input id="reg_username" name="reg_username" required>
+                        <label for="reg_username" >Username</label><input id="reg_username" name="reg_username" placeholder="Enter your username" required>
                     </div>
                     <div class="form-group">
-                        <label for="reg_password" placeholder="Enter your password">Password</label><input id="reg_password" name="reg_password" type="password" required>
+                        <label for="reg_password" >Password</label><input id="reg_password" name="reg_password" type="password" placeholder="Enter your password" required>
                     </div>
                     <div class="form-group">
-                        <label for="reg_name" placeholder="Enter your Fullname">Full Name</label><input id="reg_name" name="reg_name" required>
+                        <label for="reg_name" >Full Name</label><input id="reg_name" name="reg_name" placeholder="Enter your Fullname" required>
                     </div>
                    <div class="form-group">
                     <label for="reg_age" placeholder="Enter your age">Age</label>
@@ -62,10 +62,10 @@
                         maxlength="2"  
                         min="16"       
                         max="90"
-                        oninput="javascript: if (this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);">
+                        oninput="javascript: if (this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" placeholder="Enter your Age">
                     </div>
                     <div class="form-group">
-                        <label for="reg_address" placeholder="Enter your address">Address</label><input id="reg_address" name="reg_address">
+                        <label for="reg_address" >Address</label><input id="reg_address" name="reg_address" placeholder="Enter your address">
                     </div>
                     <div class="form-group">
                     <label for="reg_contact" placeholder="Enter your contact number">Contact</label>
@@ -75,6 +75,7 @@
                             type="tel" 
                             pattern="09[0-9]{9}" 
                             maxlength="11" 
+                            placeholder="Enter your contact number"
                             required>
                     </div>
                     <div style="display:flex;gap:8px;margin-top:8px;">
