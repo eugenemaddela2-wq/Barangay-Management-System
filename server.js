@@ -155,6 +155,24 @@ async function initializeDatabase() {
       console.log('✓ Sample official already exists');
     }
 
+    // Clean up duplicate residents (keep only the first occurrence)
+    try {
+      const dupCheck = await client.query(`
+        SELECT resident_id, name, ROW_NUMBER() OVER (PARTITION BY LOWER(TRIM(name)) ORDER BY resident_id) as rn 
+        FROM residents
+      `);
+      const toDelete = dupCheck.rows.filter(row => row.rn > 1).map(row => row.resident_id);
+      
+      if (toDelete.length > 0) {
+        for (const id of toDelete) {
+          await client.query('DELETE FROM residents WHERE resident_id = $1', [id]);
+        }
+        console.log(`✓ Cleaned up ${toDelete.length} duplicate resident(s)`);
+      }
+    } catch (err) {
+      console.log('Note: Duplicate cleanup skipped (may not be needed)');
+    }
+
   } catch (err) {
     console.error('ERROR during database initialization:', err.message);
     process.exit(1);

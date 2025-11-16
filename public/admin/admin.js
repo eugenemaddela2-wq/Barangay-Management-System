@@ -40,16 +40,20 @@
   }
 
   window.adminEditResident = async function(id) {
-    requireAdmin();
-    const data = await BMS.getResident(id);
-    const name = prompt('Name', data.name);
-    if (name == null) return;
-    const age = prompt('Age', data.age||'');
     try {
-      await BMS.updateResident(id, { name, age: Number(age)||null, address: data.address, contact: data.contact });
-      alert('Updated');
-      document.getElementById('residentsTable') && reloadList(BMS.getResidents, 'residentsTable', renderRowForResident);
-    } catch (err) { alert(err.error || 'Update failed'); }
+      requireAdmin();
+      const data = await BMS.getResident(id);
+      const name = prompt('Name', data.name);
+      if (name == null) return;
+      const age = prompt('Age', data.age||'');
+      const address = prompt('Address', data.address||'');
+      const contact = prompt('Contact', data.contact||'');
+      try {
+        await BMS.updateResident(id, { name, age: Number(age)||null, address, contact });
+        alert('Updated');
+        reloadList(BMS.getResidents, 'residentsTable', renderRowForResident);
+      } catch (err) { alert(err.error || 'Update failed'); }
+    } catch (err) { console.error('Edit error:', err); alert('Edit failed: ' + err.message); }
   };
 
   window.adminDeleteResident = async function(id) {
@@ -72,6 +76,7 @@
       </div>
       <div class="content-card">
         <h2>Residents List</h2>
+        <button class="btn" onclick="cleanupDuplicateResidents()" style="margin-bottom:10px;background:#f39c12;">🧹 Remove Duplicates</button>
         <div class="table-container"><table class="data-table"><thead><tr><th>ID</th><th>Name</th><th>Age</th><th>Address</th><th>Contact</th><th>Actions</th></tr></thead><tbody id="residentsTable"></tbody></table></div>
       </div>
     `;
@@ -203,6 +208,42 @@
   window.importAll = importAll;
 
   function adminLogout(){ BMS.logout(); window.location.href = '/login.html'; }
+
+  window.cleanupDuplicateResidents = async function() {
+    if (!confirm('This will keep only the first entry for each name and delete duplicates. Continue?')) return;
+    try {
+      const residents = await BMS.getResidents();
+      const seen = new Map(); // name -> first id
+      const toDelete = [];
+      
+      residents.forEach(r => {
+        const key = (r.name || '').toLowerCase().trim();
+        if (!seen.has(key)) {
+          seen.set(key, r.resident_id);
+        } else {
+          toDelete.push(r.resident_id);
+        }
+      });
+      
+      if (toDelete.length === 0) {
+        alert('No duplicates found!');
+        return;
+      }
+      
+      let deleted = 0;
+      for (const id of toDelete) {
+        try {
+          await BMS.apiFetch(`/api/residents/${id}`, 'DELETE');
+          deleted++;
+        } catch (e) {
+          console.error('Failed to delete resident', id, e);
+        }
+      }
+      
+      alert(`Deleted ${deleted} duplicate resident(s)`);
+      reloadList(BMS.getResidents, 'residentsTable', renderRowForResident);
+    } catch (err) { alert('Cleanup failed: ' + (err.error || err.message)); }
+  };
 
   function escapeHtml(s){ return String(s||'').replace(/[&<>"]/g, (c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
