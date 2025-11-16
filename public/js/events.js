@@ -1,5 +1,22 @@
 // Events page wiring
 document.addEventListener('DOMContentLoaded', () => {
+  // Hamburger menu toggle
+  const toggleBox = document.querySelector('.toggleBox');
+  const container = document.querySelector('.container');
+  if (toggleBox && container) {
+    toggleBox.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleBox.classList.toggle('active');
+      container.classList.toggle('active');
+    });
+  }
+
+  // Logout function
+  window.logout = function() {
+    BMS.logout();
+    location.href = '/login.html';
+  };
+
   const eventsTable = document.getElementById('eventsTable');
   const eventsGrid = document.getElementById('eventsGrid');
 

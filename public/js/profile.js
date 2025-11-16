@@ -1,5 +1,22 @@
 // Profile page wiring (local update only)
 document.addEventListener('DOMContentLoaded', () => {
+  // Hamburger menu toggle
+  const toggleBox = document.querySelector('.toggleBox');
+  const container = document.querySelector('.container');
+  if (toggleBox && container) {
+    toggleBox.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleBox.classList.toggle('active');
+      container.classList.toggle('active');
+    });
+  }
+
+  // Logout function
+  window.logout = function() {
+    BMS.logout();
+    location.href = '/login.html';
+  };
+
   const profileForm = document.getElementById('profileForm');
   const displayFullName = document.getElementById('displayFullName');
   const displayAge = document.getElementById('displayAge');

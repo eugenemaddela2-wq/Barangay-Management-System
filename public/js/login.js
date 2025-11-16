@@ -14,8 +14,13 @@ document.addEventListener('DOMContentLoaded', () => {
     bindForm('loginForm', async (data) => {
       if (!data.username || !data.password) return alert('Please enter username and password');
       try {
-        await BMS.login(data.username.trim(), data.password);
-        location.href = '/home.html';
+        const result = await BMS.login(data.username.trim(), data.password);
+        // Redirect based on role
+        if (result.user.role === 'admin') {
+          location.href = '/admin/admin.html';
+        } else {
+          location.href = '/home.html';
+        }
       } catch (err) {
         alert(err.error || 'Login failed - check your credentials');
       }
