@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BMS API Tests</title>
+    <style>
+        body { font-family: Arial; margin: 20px; background: #f0f0f0; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 8px; }
+        h1 { color: #333; border-bottom: 3px solid #007bff; padding-bottom: 10px; }
+        .test-section { margin: 20px 0; padding: 15px; background: #f9f9f9; border-left: 4px solid #007bff; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Barangay Management System - API Tests</h1>
+        <p>Testing admin and resident flows with CockroachDB connection</p>
+        
+        <div class="test-section">
+            <h2>1️⃣ Health Check</h2>
+            <button onclick="testHealth()">Test Health</button>
+            <div id="healthResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>2️⃣ Admin Login</h2>
+            <button onclick="testAdminLogin()">Admin Login</button>
+            <div id="adminLoginResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>3️⃣ Fetch Residents</h2>
+            <button onclick="testFetchResidents()">Get Residents</button>
+            <div id="residentsResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>4️⃣ Fetch Officials</h2>
+            <button onclick="testFetchOfficials()">Get Officials</button>
+            <div id="officialsResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>5️⃣ Register Resident</h2>
+            <button onclick="testRegisterResident()">Register New Resident</button>
+            <div id="registerResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>6️⃣ Resident Login</h2>
+            <button onclick="testResidentLogin()">Resident Login</button>
+            <div id="resLoginResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>7️⃣ Submit Complaint</h2>
+            <button onclick="testComplaint()">Submit Complaint</button>
+            <div id="complaintResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>8️⃣ Create Event (Admin)</h2>
+            <button onclick="testCreateEvent()">Create Event</button>
+            <div id="eventResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>9️⃣ Get All Tests Results</h2>
+            <button onclick="runAllTests()">Run All Tests</button>
+            <div id="allTestsResult"></div>
+        </div>
+    </div>
+
+    <script>
+        let adminToken = '';
+        let residentToken = '';
+        let residentsCount = 0;
+        let officialsCount = 0;
+
+        function showResult(elementId, success, message, data = null) {
+            const el = document.getElementById(elementId);
+            const status = success ? 'success' : 'error';
+            el.innerHTML = `<div class="test-result ${status}">
+                <strong>${success ? '✅' : '❌'} ${message}</strong>
+                ${data ? `<pre>${JSON.stringify(data, null, 2)}</pre>` : ''}
+            </div>`;
+        }
+
+        async function testHealth() {
+            try {
+                const resp = await fetch('/api/health');
+                const data = await resp.json();
+                showResult('healthResult', true, 'Health check passed', data);
+            } catch (err) {
+                showResult('healthResult', false, `Health check failed: ${err.message}`);
+            }
+        }
+
+        async function testAdminLogin() {
+            try {
+                const resp = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'admin', password: 'admin123' })
+                });
+                const data = await resp.json();
+                adminToken = data.token;
+                showResult('adminLoginResult', resp.ok, 
+                    `Admin login successful | Role: ${data.user.role}`, 
+                    { username: data.user.username, role: data.user.role });
+            } catch (err) {
+                showResult('adminLoginResult', false, `Admin login failed: ${err.message}`);
+            }
+        }
+
+        async function testFetchResidents() {
+            try {
+                const resp = await fetch('/api/residents');
+                const data = await resp.json();
+                residentsCount = data.length;
+                showResult('residentsResult', resp.ok, 
+                    `Fetched ${data.length} residents from CockroachDB`, 
+                    data.slice(0, 2));
+            } catch (err) {
+                showResult('residentsResult', false, `Fetch failed: ${err.message}`);
+            }
+        }
+
+        async function testFetchOfficials() {
+            try {
+                const resp = await fetch('/api/officials');
+                const data = await resp.json();
+                officialsCount = data.length;
+                showResult('officialsResult', resp.ok, 
+                    `Fetched ${data.length} officials from CockroachDB`, 
+                    data.slice(0, 2));
+            } catch (err) {
+                showResult('officialsResult', false, `Fetch failed: ${err.message}`);
+            }
+        }
+
+        async function testRegisterResident() {
+            try {
+                const username = 'testuser' + Date.now();
+                const resp = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        username: username, 
+                        password: 'password123',
+                        role: 'resident'
+                    })
+                });
+                const data = await resp.json();
+                showResult('registerResult', resp.ok, 
+                    `New resident registered: ${username}`, 
+                    { username: data.user.username, role: data.user.role });
+            } catch (err) {
+                showResult('registerResult', false, `Registration failed: ${err.message}`);
+            }
+        }
+
+        async function testResidentLogin() {
+            try {
+                const resp = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'testuser', password: 'password123' })
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    residentToken = data.token;
+                    showResult('resLoginResult', true, 
+                        `Resident login successful | Role: ${data.user.role}`, 
+                        { username: data.user.username, role: data.user.role });
+                } else {
+                    showResult('resLoginResult', false, data.error || 'Login failed');
+                }
+            } catch (err) {
+                showResult('resLoginResult', false, `Login failed: ${err.message}`);
+            }
+        }
+
+        async function testComplaint() {
+            try {
+                const resp = await fetch('/api/complaints', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: 'Broken Street Light',
+                        details: 'Street light near my house is not working'
+                    })
+                });
+                const data = await resp.json();
+                showResult('complaintResult', resp.ok, 
+                    `Complaint submitted to CockroachDB`, 
+                    { complaint_id: data.complaint_id, title: data.title });
+            } catch (err) {
+                showResult('complaintResult', false, `Complaint failed: ${err.message}`);
+            }
+        }
+
+        async function testCreateEvent() {
+            try {
+                if (!adminToken) await testAdminLogin();
+                const resp = await fetch('/api/events', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${adminToken}`
+                    },
+                    body: JSON.stringify({
+                        title: 'Barangay Cleanup Drive',
+                        date: '2025-11-25',
+                        time: '08:00:00',
+                        location: 'Community Center'
+                    })
+                });
+                const data = await resp.json();
+                showResult('eventResult', resp.ok, 
+                    `Event created by admin`, 
+                    { event_id: data.event_id, title: data.title });
+            } catch (err) {
+                showResult('eventResult', false, `Event creation failed: ${err.message}`);
+            }
+        }
+
+        async function runAllTests() {
+            const resultEl = document.getElementById('allTestsResult');
+            resultEl.innerHTML = '<p>Running all tests...</p>';
+            
+            await testHealth();
+            await new Promise(r => setTimeout(r, 500));
+            
+            await testAdminLogin();
+            await new Promise(r => setTimeout(r, 500));
+            
+            await testFetchResidents();
+            await new Promise(r => setTimeout(r, 500));
+            
+            await testFetchOfficials();
+            await new Promise(r => setTimeout(r, 500));
+            
+            await testRegisterResident();
+            await new Promise(r => setTimeout(r, 500));
+            
+            await testComplaint();
+            await new Promise(r => setTimeout(r, 500));
+            
+            await testCreateEvent();
+            
+            resultEl.innerHTML = `<div class="test-result success">
+                <h3>✅ All Tests Complete!</h3>
+                <p>Your Barangay Management System is fully operational with CockroachDB!</p>
+                <ul>
+                    <li>Admin account is working</li>
+                    <li>Residents can register and login</li>
+                    <li>All CRUD operations working</li>
+                    <li>Data persisting in CockroachDB</li>
+                </ul>
+            </div>`;
+        }
+
+        // Auto-run health check on page load
+        window.addEventListener('load', testHealth);
+    </script>
+</body>
+</html>

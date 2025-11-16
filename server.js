@@ -13,12 +13,155 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'ahfW8NZg544KKubCXtheCPsIxjE97s06UjlAtIYlyiPT31b0m2';
 
-const connectionString = process.env.DATABASE_URL || '';
+// PostgreSQL/CockroachDB connection
+const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
-  console.error('WARNING: No DATABASE_URL found in environment. Set DATABASE_URL to your Render/Postgres connection string.');
+  console.error('ERROR: DATABASE_URL not found in .env file');
+  process.exit(1);
 }
 
-const pool = new Pool({ connectionString });
+console.log('Connecting to CockroachDB...');
+const pool = new Pool({ 
+  connectionString,
+  ssl: true // CockroachDB requires SSL
+});
+
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
+});
+
+async function initializeDatabase() {
+  const client = await pool.connect();
+  try {
+    console.log('✓ Connected to CockroachDB');
+    
+    // Create tables
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        user_id SERIAL PRIMARY KEY,
+        username VARCHAR(255) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        role VARCHAR(50) DEFAULT 'resident',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✓ Users table ready');
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS residents (
+        resident_id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        age INTEGER,
+        address VARCHAR(255),
+        contact VARCHAR(100),
+        email VARCHAR(255),
+        status VARCHAR(50) DEFAULT 'Active',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✓ Residents table ready');
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS officials (
+        official_id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        position VARCHAR(255),
+        contact VARCHAR(20),
+        email VARCHAR(255),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✓ Officials table ready');
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS events (
+        event_id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        date DATE NOT NULL,
+        time TIME,
+        location VARCHAR(255),
+        created_by INTEGER REFERENCES users(user_id),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✓ Events table ready');
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS complaints (
+        complaint_id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        details TEXT,
+        resident_id INTEGER REFERENCES residents(resident_id),
+        status VARCHAR(50) DEFAULT 'Pending',
+        date DATE DEFAULT CURRENT_DATE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✓ Complaints table ready');
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS documents (
+        document_id SERIAL PRIMARY KEY,
+        type VARCHAR(100) NOT NULL,
+        title VARCHAR(255),
+        resident_id INTEGER REFERENCES residents(resident_id),
+        date DATE DEFAULT CURRENT_DATE,
+        status VARCHAR(50) DEFAULT 'Processing',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✓ Documents table ready');
+
+    // Insert default admin
+    const adminHash = bcrypt.hashSync('admin123', 10);
+    try {
+      await client.query(
+        'INSERT INTO users (username, password, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING',
+        ['admin', adminHash, 'admin']
+      );
+      console.log('✓ Admin user ready (username: admin, password: admin123)');
+    } catch (err) {
+      if (!err.message.includes('already exists')) {
+        console.log('✓ Admin user already exists');
+      }
+    }
+
+    // Insert sample resident
+    try {
+      await client.query(
+        'INSERT INTO residents (name, age, address, contact, email) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING',
+        ['Juan Dela Cruz', 35, '123 Main St, Barangay 1', '09123456789', 'juan@example.com']
+      );
+      console.log('✓ Sample resident ready');
+    } catch (err) {
+      console.log('✓ Sample resident already exists');
+    }
+
+    // Insert sample official
+    try {
+      await client.query(
+        'INSERT INTO officials (name, position, contact, email) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING',
+        ['Maria Santos', 'Barangay Captain', '09112233445', 'maria@example.com']
+      );
+      console.log('✓ Sample official ready');
+    } catch (err) {
+      console.log('✓ Sample official already exists');
+    }
+
+  } catch (err) {
+    console.error('ERROR during database initialization:', err.message);
+    process.exit(1);
+  } finally {
+    client.release();
+  }
+}
 
 async function query(text, params) {
   const client = await pool.connect();
@@ -35,7 +178,7 @@ function generateToken(user) {
   return jwt.sign({ user_id: user.user_id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '12h' });
 }
 
-// Middleware: authenticate token if provided
+// Middleware: authenticate token
 function authenticateToken(req, res, next) {
   const auth = req.headers['authorization'];
   if (!auth) return next();
@@ -80,7 +223,7 @@ app.post('/api/auth/register', async (req, res) => {
     const token = generateToken(user);
     res.json({ user, token });
   } catch (err) {
-    if (err.code === '23505') { // unique_violation
+    if (err.code === '23505') {
       return res.status(409).json({ error: 'Username already exists' });
     }
     console.error(err);
@@ -110,12 +253,24 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// Admin: manage users (list/create/delete) — safer than using register for admin actions
+app.post('/api/auth/refresh', async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'Invalid or missing token' });
+  try {
+    const payload = { user_id: req.user.user_id, username: req.user.username, role: req.user.role };
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '12h' });
+    res.json({ token });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not refresh token' });
+  }
+});
+
+// User management (admin only)
 app.get('/api/users', requireRole('admin'), async (req, res) => {
   try {
     const r = await query('SELECT user_id, username, role, created_at FROM users ORDER BY user_id');
     res.json(r.rows);
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal error' }); }
 });
 
 app.post('/api/users', requireRole('admin'), async (req, res) => {
@@ -131,30 +286,15 @@ app.post('/api/users', requireRole('admin'), async (req, res) => {
     res.json(r.rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Username exists' });
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
+    console.error(err); res.status(500).json({ error: 'Internal error' });
   }
 });
 
 app.delete('/api/users/:id', requireRole('admin'), async (req, res) => {
-  try { const r = await query('DELETE FROM users WHERE user_id=$1 RETURNING user_id, username', [req.params.id]); if (r.rowCount===0) return res.status(404).json({ error:'Not found' }); res.json({ deleted: true }); } catch (err) { console.error(err); res.status(500).json({ error:'Internal server error' }); }
+  try { const r = await query('DELETE FROM users WHERE user_id=$1 RETURNING user_id, username', [req.params.id]); if (r.rowCount===0) return res.status(404).json({ error:'Not found' }); res.json({ deleted: true }); } catch (err) { console.error(err); res.status(500).json({ error:'Internal error' }); }
 });
 
-// Token refresh endpoint: requires a valid token and issues a fresh one
-app.post('/api/auth/refresh', async (req, res) => {
-  if (!req.user) return res.status(401).json({ error: 'Invalid or missing token' });
-  try {
-    // issue a new token based on the current user payload
-    const payload = { user_id: req.user.user_id, username: req.user.username, role: req.user.role };
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '12h' });
-    res.json({ token });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Could not refresh token' });
-  }
-});
-
-// CRUD helpers for generic tables
-// Residents
+// Residents CRUD
 app.get('/api/residents', async (req, res) => {
   try {
     const r = await query('SELECT * FROM residents ORDER BY resident_id');
@@ -216,7 +356,7 @@ app.delete('/api/residents/:id', requireRole('admin'), async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal error' }); }
 });
 
-// Officials
+// Officials CRUD
 app.get('/api/officials', async (req, res) => {
   try { const r = await query('SELECT * FROM officials ORDER BY official_id'); res.json(r.rows); } catch (err) { console.error(err); res.status(500).json({ error: 'Internal error' }); }
 });
@@ -227,7 +367,7 @@ app.post('/api/officials', requireRole('admin'), async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ error: 'Validation failed', details: errors.array() });
   const { name, position, contact } = req.body;
-  try { const r = await query('INSERT INTO officials (name, position, contact) VALUES ($1,$2,$3) RETURNING *', [name, position, contact]); res.json(r.rows[0]); } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+  try { const r = await query('INSERT INTO officials (name, position, contact) VALUES ($1,$2,$3) RETURNING *', [name, position, contact]); res.json(r.rows[0]); } catch (err) { console.error(err); res.status(500).json({ error: 'Internal error' }); }
 });
 app.put('/api/officials/:id', requireRole('admin'), async (req, res) => {
   await param('id').isInt().run(req);
@@ -237,11 +377,11 @@ app.put('/api/officials/:id', requireRole('admin'), async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ error: 'Validation failed', details: errors.array() });
   const { name, position, contact } = req.body;
-  try { const r = await query('UPDATE officials SET name=$1, position=$2, contact=$3 WHERE official_id=$4 RETURNING *', [name, position, contact, req.params.id]); if (r.rowCount===0) return res.status(404).json({ error:'Not found' }); res.json(r.rows[0]); } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+  try { const r = await query('UPDATE officials SET name=$1, position=$2, contact=$3 WHERE official_id=$4 RETURNING *', [name, position, contact, req.params.id]); if (r.rowCount===0) return res.status(404).json({ error:'Not found' }); res.json(r.rows[0]); } catch (err) { console.error(err); res.status(500).json({ error: 'Internal error' }); }
 });
-app.delete('/api/officials/:id', requireRole('admin'), async (req, res) => { try { const r = await query('DELETE FROM officials WHERE official_id=$1 RETURNING *', [req.params.id]); if (r.rowCount===0) return res.status(404).json({ error:'Not found' }); res.json({ deleted:true }); } catch (err) { console.error(err); res.status(500).json({ error:'Internal server error' }); } });
+app.delete('/api/officials/:id', requireRole('admin'), async (req, res) => { try { const r = await query('DELETE FROM officials WHERE official_id=$1 RETURNING *', [req.params.id]); if (r.rowCount===0) return res.status(404).json({ error:'Not found' }); res.json({ deleted:true }); } catch (err) { console.error(err); res.status(500).json({ error:'Internal error' }); } });
 
-// Events
+// Events CRUD
 app.get('/api/events', async (req, res) => { try { const r = await query('SELECT * FROM events ORDER BY date DESC'); res.json(r.rows); } catch (err) { console.error(err); res.status(500).json({ error:'Internal' }); } });
 app.post('/api/events', requireRole(['admin','official']), async (req, res) => {
   await body('title').isLength({ min: 1 }).run(req);
@@ -271,7 +411,7 @@ app.delete('/api/events/:id', requireRole(['admin','official']), async (req, res
   try { const r = await query('DELETE FROM events WHERE event_id=$1 RETURNING *', [req.params.id]); if (r.rowCount===0) return res.status(404).json({ error:'Not found' }); res.json({ deleted:true }); } catch (err) { console.error(err); res.status(500).json({ error:'Internal' }); }
 });
 
-// Complaints
+// Complaints CRUD
 app.get('/api/complaints', async (req, res) => { try { const r = await query('SELECT * FROM complaints ORDER BY created_at DESC'); res.json(r.rows); } catch (err) { console.error(err); res.status(500).json({ error:'Internal' }); } });
 app.post('/api/complaints', async (req, res) => {
   await body('title').isLength({ min: 1 }).run(req);
@@ -297,7 +437,7 @@ app.delete('/api/complaints/:id', requireRole(['admin','official']), async (req,
   try { const r = await query('DELETE FROM complaints WHERE complaint_id=$1 RETURNING *', [req.params.id]); if (r.rowCount===0) return res.status(404).json({ error:'Not found' }); res.json({ deleted:true }); } catch (err) { console.error(err); res.status(500).json({ error:'Internal' }); }
 });
 
-// Documents
+// Documents CRUD
 app.get('/api/documents', async (req, res) => { try { const r = await query('SELECT * FROM documents ORDER BY created_at DESC'); res.json(r.rows); } catch (err) { console.error(err); res.status(500).json({ error:'Internal' }); } });
 app.post('/api/documents', requireRole(['admin','official']), async (req, res) => {
   await body('type').isLength({ min: 1 }).run(req);
@@ -327,10 +467,10 @@ app.delete('/api/documents/:id', requireRole('admin'), async (req, res) => {
   try { const r = await query('DELETE FROM documents WHERE document_id=$1 RETURNING *', [req.params.id]); if (r.rowCount===0) return res.status(404).json({ error:'Not found' }); res.json({ deleted:true }); } catch (err) { console.error(err); res.status(500).json({ error:'Internal' }); }
 });
 
-// Simple health
-app.get('/api/health', (req, res) => res.json({ ok: true }));
+// Health check
+app.get('/api/health', (req, res) => res.json({ ok: true, database: 'cockroachdb' }));
 
-// Serve static files (the existing public/ folder)
+// Serve static files
 app.use(express.static('public'));
 
 // Error handler
@@ -340,6 +480,22 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server started on port ${PORT}`);
-});
+// Initialize and start
+(async () => {
+  try {
+    await initializeDatabase();
+    app.listen(PORT, () => {
+      console.log(`\n🚀 Server started on port ${PORT}`);
+      console.log(`📋 Frontend:    http://localhost:${PORT}`);
+      console.log(`🔐 Login:       http://localhost:${PORT}/login.html`);
+      console.log(`👨‍💼 Admin Panel:  http://localhost:${PORT}/admin/admin.html`);
+      console.log(`\n🔑 Test Credentials:`);
+      console.log(`   Admin:     username=admin, password=admin123`);
+      console.log(`   Resident:  Create from register form`);
+      console.log(`\n✓ Database: CockroachDB\n`);
+    });
+  } catch (err) {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  }
+})();
